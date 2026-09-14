@@ -3,10 +3,6 @@ package dev.silentauth.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
-/**
- * Field access helper that understands both MCP and SRG names, so the same code works
- * in a dev workspace and in a production (obfuscated) install.
- */
 public final class Reflect {
 
     private Reflect() {
@@ -19,7 +15,7 @@ public final class Reflect {
                 field.setAccessible(true);
                 return field;
             } catch (NoSuchFieldException ignored) {
-                // try the next mapping
+                continue;
             }
         }
         throw new IllegalStateException("None of " + join(names) + " exist on " + owner.getName());
@@ -54,7 +50,7 @@ public final class Reflect {
             modifiers.setAccessible(true);
             modifiers.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         } catch (Exception ignored) {
-            // setAccessible(true) already covers instance fields on Java 8; this is only a fallback
+            return;
         }
     }
 

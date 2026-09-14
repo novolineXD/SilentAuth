@@ -26,10 +26,6 @@ public final class Log {
         LOGGER.error(message, t);
     }
 
-    /**
-     * Tokens must never end up in latest.log - crash reports and log uploads are
-     * shared around far too easily. Everything that touches a token logs it through here.
-     */
     public static String redact(String secret) {
         if (secret == null || secret.isEmpty()) {
             return "<none>";
