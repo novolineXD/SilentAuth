@@ -1,0 +1,55 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = "https://maven.minecraftforge.net" }
+        maven { url = "https://repo.spongepowered.org/maven" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+group = 'dev.silentauth'
+version = project.mod_version
+archivesBaseName = 'SilentAuth'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+minecraft {
+    version = "${project.mc_version}-${project.forge_version}"
+    mappings = project.mcp_mappings
+    runDir = 'run'
+    makeObfSourceJar = false
+
+    replace '@MOD_VERSION@', project.mod_version
+    replaceIn 'SilentAuth.java'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mcversion', project.mc_version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.mc_version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'SilentAuth',
+            'Implementation-Version': project.version
+        )
+    }
+}
