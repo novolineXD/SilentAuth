@@ -1,21 +1,22 @@
 # SilentAuth
 
-Account switcher for Minecraft 1.8.9 (Forge). Log in with a session token, with a
-Microsoft account through the device code flow, or offline, and send the auth traffic
-(optionally the game traffic as well) through HTTP, SOCKS4 or SOCKS5 proxies.
+Account manager for Minecraft 1.8.9 (Forge). Everything happens in the menus: add a session
+token, sign in with a Microsoft account, bind proxies, switch the running session. No server
+is ever joined by the mod itself.
 
 ## Features
 
-- **Session token login** - paste a token, the profile endpoint fills in the name and uuid,
-  the session is swapped in place without restarting the game.
+- **Session token login** - paste a token or import a list of them, the profile endpoint
+  fills in the name and uuid, and the session is swapped in place without restarting.
 - **Microsoft device code sign in** - no password is ever typed into the game. A code is
   shown, you enter it at `microsoft.com/link`, and the refresh token is stored so the
   account can be reused later.
-- **Offline accounts** - plain username for servers in offline mode.
+- **Offline accounts** - plain username, no token.
 - **Proxies** - HTTP, SOCKS4 and SOCKS5, with or without credentials. Each account can be
-  bound to its own proxy, or a default can be set for everything.
-- **Proxied joining** - a local relay forwards the game connection through the proxy and
-  rewrites the handshake so the server still sees the real hostname.
+  bound to its own proxy, or a default can be set for everything. Every token check, sign in
+  and session-server call then goes out through it.
+- **Bulk import** - a text file of tokens and a text file of proxies, both read from the
+  config folder.
 - **Encrypted storage** - tokens are stored AES-GCM encrypted under a key file next to them,
   never in plain text, and never written to the log.
 
@@ -36,8 +37,9 @@ For IDEA: run `gradle setupDecompWorkspace idea` first, then import the project.
 
 ## Using it
 
-A **SilentAuth** button appears in the top left of the main menu and the server list.
-Right shift opens the same screen in game, and `/sa` works from chat.
+A **SilentAuth** button sits in the top left of the main menu and the server list, so the
+whole mod is reachable straight from the title screen. Right shift opens the same screen in
+game, and `/sa` works from chat.
 
 | Command | What it does |
 | --- | --- |
@@ -50,9 +52,23 @@ Right shift opens the same screen in game, and `/sa` works from chat.
 | `/sa proxy default <host:port>` | sets the default proxy |
 | `/sa proxy off` | stops using a default proxy |
 
-### Proxy formats
+### Importing tokens
 
-All of these parse:
+`Import file` on the account screen reads `config/silentauth/accounts.txt`, one account per
+line, `#` for comments. The shape of each field is detected, so all of these work:
+
+```
+eyJhbGciOiJIUzI1NiJ9.token.here
+Notch:eyJhbGciOiJIUzI1NiJ9.token.here
+token:eyJhbGciOiJIUzI1NiJ9.token.here:069a79f444e94726a5befca90e38aaf5
+Notch:069a79f444e94726a5befca90e38aaf5:eyJhbGciOiJIUzI1NiJ9.token.here
+```
+
+A line that carries both a name and a uuid is stored as is. A line with only a token is
+looked up against the profile endpoint through the selected proxy, which also confirms the
+token still works.
+
+### Proxy formats
 
 ```
 1.2.3.4:1080
@@ -63,8 +79,8 @@ http://1.2.3.4:8080
 ```
 
 Without a scheme the type from the config (`defaultType`, SOCKS5 out of the box) is used.
-`Import file` on the proxy screen reads `config/silentauth/proxies.txt`, one per line,
-`#` for comments.
+`Import file` on the proxy screen reads `config/silentauth/proxies.txt` the same way, and
+`Test` opens a real connection through the proxy to measure it.
 
 ### Where things are stored
 
@@ -73,6 +89,7 @@ config/silentauth/silentauth.cfg   settings
 config/silentauth/accounts.json    accounts, tokens encrypted
 config/silentauth/proxies.json     proxies, passwords encrypted
 config/silentauth/key.bin          local key, owner readable only
+config/silentauth/accounts.txt     optional import list
 config/silentauth/proxies.txt      optional import list
 ```
 
@@ -83,24 +100,14 @@ wipe the accounts if the machine changes hands.
 
 `Minecraft.session` is replaced through reflection (both MCP and SRG names are tried, so the
 same jar works in a dev workspace and in a normal install), and the `MinecraftSessionService`
-is rebuilt on top of the selected proxy so the `joinServer` call that authenticates you to a
-server goes out through that proxy too. Everything that touches the network runs off the
-render thread; only the swap itself is scheduled back onto the client thread.
-
-## Proxied joining
-
-Normal joins from the server list use the game's own connection. To put the game traffic
-through a proxy as well, use **Proxies -> Proxied join**: it opens a listener on
-`127.0.0.1`, connects out through the proxy, rewrites the address inside the handshake
-packet so virtual hosts and forge's `\0FML\0` marker survive, and then hands the local port
-to the vanilla connect screen.
+is rebuilt on top of the selected proxy, so anything the game later asks Mojang about the
+session travels the same route. Everything that touches the network runs off the render
+thread; only the swap itself is scheduled back onto the client thread.
 
 ## Notes
 
 - Tokens expire. Microsoft accounts refresh themselves on login; session token accounts have
-  to be updated by hand when `Check token` starts failing.
-- Some proxies do not allow CONNECT to port 25565, in which case only the auth traffic can be
-  proxied.
+  to be replaced by hand when `Check token` starts failing.
 - HTTP proxies that require credentials for HTTPS tunnels need
   `-Djdk.http.auth.tunneling.disabledSchemes=` in the launch arguments, a JVM restriction
   rather than a mod one.

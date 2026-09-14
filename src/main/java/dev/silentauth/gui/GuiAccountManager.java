@@ -2,14 +2,17 @@ package dev.silentauth.gui;
 
 import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
+import dev.silentauth.account.AccountImporter;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.account.SessionSwapper;
 import dev.silentauth.proxy.ProxyEntry;
+import dev.silentauth.util.Async;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Keyboard;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +42,7 @@ public final class GuiAccountManager extends GuiScreen {
         searchField.setText(lastQuery);
 
         final int listTop = 48;
-        final int listHeight = Math.max(48, height - 118);
+        final int listHeight = Math.max(44, height - 156);
         list = new ListWidget(width / 2 - 150, listTop, 300, listHeight, 22) {
             @Override
             public int getSize() {
@@ -71,14 +74,16 @@ public final class GuiAccountManager extends GuiScreen {
         };
 
         int left = width / 2 - 154;
-        int rowOne = height - 62;
-        int rowTwo = height - 38;
+        int rowOne = height - 86;
+        int rowTwo = height - 62;
+        int rowThree = height - 38;
         buttonList.add(new GuiButton(1, left, rowOne, 100, 20, "Log in"));
         buttonList.add(new GuiButton(2, left + 104, rowOne, 100, 20, "Add account"));
         buttonList.add(new GuiButton(3, left + 208, rowOne, 100, 20, "Remove"));
         buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Check token"));
-        buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Proxies"));
-        buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Done"));
+        buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Import file"));
+        buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Proxies"));
+        buttonList.add(new GuiButton(7, left, rowThree, 308, 20, "Done"));
 
         refreshList();
     }
@@ -111,9 +116,12 @@ public final class GuiAccountManager extends GuiScreen {
                 checkSelected();
                 break;
             case 5:
-                mc.displayGuiScreen(new GuiProxyManager(this));
+                importFile();
                 break;
             case 6:
+                mc.displayGuiScreen(new GuiProxyManager(this));
+                break;
+            case 7:
                 mc.displayGuiScreen(parent);
                 break;
             default:
@@ -151,6 +159,45 @@ public final class GuiAccountManager extends GuiScreen {
             public void onResult(boolean success, String message) {
                 busy = false;
                 status = (success ? "§a" : "§c") + message;
+            }
+        });
+    }
+
+    private void importFile() {
+        if (busy) {
+            return;
+        }
+        final File file = new File(SilentAuth.get().getDirectory(), "accounts.txt");
+        if (!file.isFile()) {
+            status = "§cPut one token per line in " + file.getName();
+            return;
+        }
+        busy = true;
+        status = "§7Reading " + file.getName();
+        Async.run(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    List<String> lines = AccountImporter.readLines(file);
+                    if (lines.isEmpty()) {
+                        status = "§c" + file.getName() + " is empty";
+                        return;
+                    }
+                    AccountImporter.Result result = AccountImporter.importAll(lines,
+                            LoginService.resolveAuthProxy(null), new AccountImporter.Progress() {
+                                @Override
+                                public void onProgress(int done, int total, String line) {
+                                    status = "§7Checking token " + (done + 1) + " of " + total;
+                                }
+                            });
+                    refreshList();
+                    status = "§aImported " + result.added
+                            + (result.failed > 0 ? " §c(" + result.failed + " skipped)" : "");
+                } catch (IOException e) {
+                    status = "§cCould not read " + file.getName();
+                } finally {
+                    busy = false;
+                }
             }
         });
     }
@@ -213,9 +260,13 @@ public final class GuiAccountManager extends GuiScreen {
         list.draw(mouseX, mouseY);
 
         String footer = "§7Session: §f" + SessionSwapper.currentUsername();
-        drawCenteredString(fontRendererObj, footer, width / 2, height - 82, 0xFFFFFF);
+        ProxyEntry activeProxy = LoginService.resolveProxy(SilentAuth.accounts().getActive());
+        if (activeProxy != null) {
+            footer += " §8| §7" + activeProxy.describe();
+        }
+        drawCenteredString(fontRendererObj, footer, width / 2, height - 106, 0xFFFFFF);
         if (!status.isEmpty()) {
-            drawCenteredString(fontRendererObj, busy ? status + " ..." : status, width / 2, height - 94, 0xFFFFFF);
+            drawCenteredString(fontRendererObj, busy ? status + " ..." : status, width / 2, height - 96, 0xFFFFFF);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

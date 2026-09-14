@@ -69,9 +69,8 @@ public final class GuiProxyManager extends GuiScreen {
         buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Test all"));
         buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Set default"));
         buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Import file"));
-        buttonList.add(new GuiButton(7, left, rowThree, 100, 20, "Bind to account"));
-        buttonList.add(new GuiButton(8, left + 104, rowThree, 100, 20, "Proxied join"));
-        buttonList.add(new GuiButton(9, left + 208, rowThree, 100, 20, "Back"));
+        buttonList.add(new GuiButton(7, left, rowThree, 152, 20, "Bind to account"));
+        buttonList.add(new GuiButton(8, left + 156, rowThree, 152, 20, "Back"));
     }
 
     private void refreshList() {
@@ -131,9 +130,6 @@ public final class GuiProxyManager extends GuiScreen {
                 bindToAccount(entry);
                 break;
             case 8:
-                mc.displayGuiScreen(new GuiProxiedJoin(this));
-                break;
-            case 9:
                 mc.displayGuiScreen(parent);
                 break;
             default:
