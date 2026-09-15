@@ -25,7 +25,7 @@ public final class GuiProxyManager extends SilentAuthScreen {
     private static final int BACK = 2;
 
     private static final int PANEL_WIDTH = 330;
-    private static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 32;
     private static final int MAX_ROWS = 6;
     /** Title, field, format hint, status band, one button row and the bottom padding. */
     private static final int CHROME_HEIGHT = 76 + 14 + 16 + 22 + 14;
@@ -49,7 +49,7 @@ public final class GuiProxyManager extends SilentAuthScreen {
         int fieldTop = top + 40;
         int listTop = top + 76;
 
-        addressField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 12);
+        addressField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 16);
         addressField.setMaxStringLength(4096);
         addressField.setEnableBackgroundDrawing(false);
         addressField.setTextColor(Theme.TEXT);

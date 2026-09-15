@@ -49,7 +49,7 @@ abstract class ListWidget extends Gui {
         int textW = rowWidth - 18;
         Text.draw(Text.trim(title, textW), textX, rowY, Theme.TEXT);
         if (subtitle != null && !subtitle.isEmpty()) {
-            Text.draw(Text.trim(subtitle, textW), textX, rowY + 10, Theme.TEXT_FAINT);
+            Text.draw(Text.trim(subtitle, textW), textX, rowY + 13, Theme.TEXT_FAINT);
         }
     }
 

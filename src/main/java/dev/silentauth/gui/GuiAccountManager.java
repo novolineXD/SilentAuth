@@ -34,7 +34,7 @@ public final class GuiAccountManager extends SilentAuthScreen {
     private static final int CLOSE = 4;
 
     private static final int PANEL_WIDTH = 330;
-    private static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 32;
     private static final int MAX_ROWS = 6;
     /** Title, field, status band, two button rows and the bottom padding. */
     private static final int CHROME_HEIGHT = 76 + 16 + 50 + 14;
@@ -60,7 +60,7 @@ public final class GuiAccountManager extends SilentAuthScreen {
         int listHeight = listHeight();
 
         String carried = tokenField == null ? "" : tokenField.getText();
-        tokenField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 12);
+        tokenField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 16);
         tokenField.setMaxStringLength(4096);
         tokenField.setEnableBackgroundDrawing(false);
         tokenField.setTextColor(Theme.TEXT);
@@ -73,7 +73,7 @@ public final class GuiAccountManager extends SilentAuthScreen {
 
         int buttonsTop = listTop + listHeight + 16;
         int half = (PANEL_WIDTH - 40 - 10) / 2;
-        buttonList.add(new GlassButton(MICROSOFT, left + 20, buttonsTop, half, 22, "Microsoft sign in"));
+        buttonList.add(new GlassButton(MICROSOFT, left + 20, buttonsTop, half, 22, "Microsoft"));
         buttonList.add(new GlassButton(PROXIES, left + 30 + half, buttonsTop, half, 22, "Proxies"));
         buttonList.add(new GlassButton(CLOSE, left + 20, buttonsTop + 28, PANEL_WIDTH - 40, 22, "Close"));
 

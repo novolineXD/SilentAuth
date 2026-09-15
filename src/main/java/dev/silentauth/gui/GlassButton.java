@@ -53,6 +53,6 @@ class GlassButton extends GuiButton {
         Draw.roundedGradient(xPosition + 1.0F, yPosition + 1.0F, right - 1.0F, bottom - 1.0F,
                 RADIUS - 1.0F, top, base);
 
-        Text.drawCentred(displayString, xPosition + width / 2, yPosition + (height - 8) / 2, ink);
+        Text.drawCentred(displayString, xPosition + width / 2, yPosition + (height - 10) / 2, ink);
     }
 }

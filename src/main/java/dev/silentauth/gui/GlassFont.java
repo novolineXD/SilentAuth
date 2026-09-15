@@ -28,7 +28,7 @@ final class GlassFont {
     private static final char LAST = 126;
 
     /** Gui-space height of a line of text. */
-    static final float LINE = 9.0F;
+    static final float LINE = 11.0F;
 
     private static final ResourceLocation ATLAS = new ResourceLocation("silentauth", "textures/font.png");
 
