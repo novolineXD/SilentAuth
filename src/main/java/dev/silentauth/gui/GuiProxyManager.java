@@ -232,12 +232,12 @@ public final class GuiProxyManager extends SilentAuthScreen {
         drawPanel(left, top, left + PANEL_WIDTH, top + panelHeight());
         drawTitle("Proxies", top + 14);
 
-        drawField(addressField, "Paste a proxy, or several at once");
+        drawField(addressField, "Paste a proxy  -  ip:port  or  ip:port:user:pass");
         Draw.well(left + 8, listTop, left + PANEL_WIDTH - 8, listTop + listHeight,
                 FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
         list.draw(mouseX, mouseY);
 
-        fontRendererObj.drawString("host:port    host:port:user:pass    user:pass@host:port",
+        Text.draw("like  154.9.12.80:8080      154.9.12.80:8080:myuser:mypass",
                 left + 20, listTop + listHeight + 6, Theme.TEXT_FAINT);
         drawStatusOr(listTop + listHeight + 20, "Click a proxy to use it    the x on a row removes it");
         super.drawScreen(mouseX, mouseY, partialTicks);

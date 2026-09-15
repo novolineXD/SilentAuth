@@ -54,13 +54,13 @@ abstract class SilentAuthScreen extends GuiScreen {
         if (current.isEmpty()) {
             return;
         }
-        drawCenteredString(fontRendererObj, busy ? current + "..." : current, width / 2, y, messageColour);
+        Text.drawCentred(busy ? current + "..." : current, width / 2, y, messageColour);
     }
 
     /** Draws the status where there is one, otherwise a faint standing hint in its place. */
     protected final void drawStatusOr(int y, String hint) {
         if (message.isEmpty()) {
-            drawCenteredString(fontRendererObj, hint, width / 2, y, Theme.TEXT_FAINT);
+            Text.drawCentred(hint, width / 2, y, Theme.TEXT_FAINT);
         } else {
             drawStatus(y);
         }
@@ -92,12 +92,12 @@ abstract class SilentAuthScreen extends GuiScreen {
 
         field.drawTextBox();
         if (field.getText().isEmpty() && placeholder != null) {
-            fontRendererObj.drawString(placeholder, field.xPosition, field.yPosition, Theme.TEXT_FAINT);
+            Text.draw(placeholder, field.xPosition, field.yPosition - 1, Theme.TEXT_FAINT);
         }
     }
 
     protected final void drawTitle(String text, int y) {
-        drawCenteredString(fontRendererObj, text, width / 2, y, Theme.MAUVE);
+        Text.drawCentred(text, width / 2, y, Theme.MAUVE);
     }
 
     protected final void back() {

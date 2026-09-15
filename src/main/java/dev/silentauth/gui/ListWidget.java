@@ -42,13 +42,14 @@ abstract class ListWidget extends Gui {
      */
     protected final void paintRow(int rowX, int rowY, int rowWidth, int statusColour,
                                   String title, String subtitle) {
-        Draw.dot(rowX + 4, rowY + 8, 3.5F, statusColour);
-        int textX = rowX + 16;
-        int textW = rowWidth - 16;
-        mc.fontRendererObj.drawString(mc.fontRendererObj.trimStringToWidth(title, textW), textX, rowY, Theme.TEXT);
+        // A soft round dot for the status colour.
+        int cy = rowY + 8;
+        Draw.dot(rowX + 3, cy, 4.0F, statusColour);
+        int textX = rowX + 18;
+        int textW = rowWidth - 18;
+        Text.draw(Text.trim(title, textW), textX, rowY, Theme.TEXT);
         if (subtitle != null && !subtitle.isEmpty()) {
-            mc.fontRendererObj.drawString(mc.fontRendererObj.trimStringToWidth(subtitle, textW),
-                    textX, rowY + 10, Theme.TEXT_FAINT);
+            Text.draw(Text.trim(subtitle, textW), textX, rowY + 10, Theme.TEXT_FAINT);
         }
     }
 
@@ -98,7 +99,7 @@ abstract class ListWidget extends Gui {
         }
 
         if (getSize() == 0) {
-            drawCenteredString(mc.fontRendererObj, emptyText(), x + width / 2, y + height / 2 - 4, Theme.TEXT_FAINT);
+            Text.drawCentred(emptyText(), x + width / 2, y + height / 2 - 4, Theme.TEXT_FAINT);
         }
         drawScrollbar();
     }
@@ -116,8 +117,7 @@ abstract class ListWidget extends Gui {
         int fill = overRemove ? 0xE6F0607A : rowHovered ? 0x40F38BA8 : 0x24F38BA8;
         Draw.rounded(centreX - 9, centreY - 8, centreX + 9, centreY + 8, 5.0F, fill);
         int ink = overRemove ? 0xFFFFFFFF : Theme.DANGER;
-        String x = "x";
-        mc.fontRendererObj.drawString(x, centreX - mc.fontRendererObj.getStringWidth(x) / 2, centreY - 4, ink);
+        Text.drawCentred("x", centreX, centreY - 4, ink);
     }
 
     private void drawScrollbar() {

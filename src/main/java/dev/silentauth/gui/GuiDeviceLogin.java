@@ -164,18 +164,18 @@ public final class GuiDeviceLogin extends SilentAuthScreen {
         Draw.well(left + 20, top + 38, left + PANEL_WIDTH - 20, top + 68,
                 FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
         if (current == null) {
-            drawCenteredString(fontRendererObj, "...", width / 2, top + 49, Theme.TEXT_FAINT);
+            Text.drawCentred("...", width / 2, top + 49, Theme.TEXT_FAINT);
         } else {
-            drawCenteredString(fontRendererObj, current.getUserCode(), width / 2, top + 49, Theme.MAUVE);
+            Text.drawCentred(current.getUserCode(), width / 2, top + 49, Theme.MAUVE);
             if (!finished) {
-                drawCenteredString(fontRendererObj, "expires in " + current.getSecondsLeft() + "s",
+                Text.drawCentred("expires in " + current.getSecondsLeft() + "s",
                         width / 2, top + 76, Theme.TEXT_FAINT);
             }
         }
 
         drawStatus(bottom + 8);
         if (proxy != null) {
-            drawCenteredString(fontRendererObj, "through " + proxy.describe(), width / 2, bottom + 20,
+            Text.drawCentred("through " + proxy.describe(), width / 2, bottom + 20,
                     Theme.TEXT_FAINT);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);

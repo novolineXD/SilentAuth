@@ -46,6 +46,16 @@ public final class MainMenuHandler {
         if (event.gui instanceof GuiMainMenu && !restored) {
             restored = true;
             SilentAuth.restoreLastAccount();
+            // Test aid: open the manager straight away so it can be screenshotted.
+            if ("1".equals(System.getenv("SILENTAUTH_AUTOOPEN"))) {
+                final GuiScreen menu = event.gui;
+                Minecraft.getMinecraft().addScheduledTask(new Runnable() {
+                    @Override
+                    public void run() {
+                        Minecraft.getMinecraft().displayGuiScreen(new GuiAccountManager(menu));
+                    }
+                });
+            }
         }
         if (SilentAuth.config().isShowMainMenuButton()) {
             event.buttonList.add(new GuiButton(BUTTON_ID, 5, 5, 90, 20, "SilentAuth"));
