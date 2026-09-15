@@ -34,12 +34,12 @@ final class Theme {
     static final int TEXT_DIM = 0xFFB9B0CC;
     static final int TEXT_FAINT = 0xFF877E9C;
 
-    /** In use. */
-    static final int OK = 0xFFA6E3A1;
+    /** In use - a vivid green so the active account or proxy is unmistakable. */
+    static final int OK = 0xFF5BE58A;
     /** Invalid or dead. */
-    static final int DANGER = 0xFFF38BA8;
-    /** Neither - idle, untested, not selected. */
-    static final int IDLE = 0xFF6C6685;
+    static final int DANGER = 0xFFF35A6E;
+    /** Good but not in use - a clear neutral grey, distinct from the purple glass behind it. */
+    static final int IDLE = 0xFF9A9AB0;
 
     // --- controls -------------------------------------------------------
 
