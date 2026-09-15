@@ -4,11 +4,14 @@ import dev.silentauth.SilentAuth;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.gui.GuiAccountManager;
 import dev.silentauth.net.ProxiedConnect;
+import dev.silentauth.util.Reflect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiScreenServerList;
+import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.multiplayer.GuiConnecting;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.client.event.GuiOpenEvent;
@@ -83,10 +86,37 @@ public final class MainMenuHandler {
         }
         String ip = ProxiedConnect.selectedServerIp((GuiMultiplayer) event.gui);
         if (ip == null) {
+            dev.silentauth.util.Log.warn("Could not read the selected server; this join may not use the proxy");
             return;
         }
         event.setCanceled(true);
         ProxiedConnect.connect(event.gui, ip);
+    }
+
+    /**
+     * The Direct Connect "Join Server" button (id 0), intercepted the same race-free way as the
+     * server-list Join button.
+     */
+    @SubscribeEvent
+    public void onDirectConnect(GuiScreenEvent.ActionPerformedEvent.Pre event) {
+        if (!(event.gui instanceof GuiScreenServerList) || event.button == null || event.button.id != 0) {
+            return;
+        }
+        if (!SilentAuth.config().isRouteGameThroughProxy()) {
+            return;
+        }
+        if (LoginService.resolveProxy(SilentAuth.accounts().getActive()) == null) {
+            return;
+        }
+        GuiScreenServerList gui = (GuiScreenServerList) event.gui;
+        GuiTextField field = Reflect.get(gui, GuiScreenServerList.class, GuiTextField.class, "field_146302_g");
+        String ip = field.getText().trim();
+        if (ip.isEmpty()) {
+            return;
+        }
+        GuiScreen parent = Reflect.get(gui, GuiScreenServerList.class, GuiScreen.class, "field_146303_a");
+        event.setCanceled(true);
+        ProxiedConnect.connect(parent, ip);
     }
 
     /**
