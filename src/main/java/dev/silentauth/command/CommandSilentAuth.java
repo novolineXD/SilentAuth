@@ -5,6 +5,9 @@ import dev.silentauth.account.Account;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.account.SessionSwapper;
 import dev.silentauth.gui.GuiAccountManager;
+import dev.silentauth.net.IpCheck;
+import dev.silentauth.net.ProxiedConnect;
+import dev.silentauth.util.Async;
 import dev.silentauth.proxy.ProxyEntry;
 import dev.silentauth.proxy.ProxyParser;
 import net.minecraft.client.Minecraft;
@@ -13,14 +16,15 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.ChatComponentText;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public final class CommandSilentAuth extends CommandBase {
 
-    private static final String[] SUBCOMMANDS = { "gui", "list", "login", "restore", "status", "proxy" };
-    private static final String[] PROXY_ACTIONS = { "list", "add", "default", "off" };
+    private static final String[] SUBCOMMANDS = { "gui", "list", "login", "restore", "join", "status", "proxy" };
+    private static final String[] PROXY_ACTIONS = { "list", "add", "default", "off", "check" };
 
     @Override
     public String getCommandName() {
@@ -34,7 +38,7 @@ public final class CommandSilentAuth extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/sa <gui|list|login|restore|status|proxy>";
+        return "/sa <gui|list|login|restore|join|status|proxy>";
     }
 
     @Override
@@ -91,6 +95,8 @@ public final class CommandSilentAuth extends CommandBase {
             status(sender);
         } else if (sub.equals("login")) {
             login(sender, args);
+        } else if (sub.equals("join")) {
+            join(sender, args);
         } else if (sub.equals("restore")) {
             restore(sender);
         } else if (sub.equals("proxy")) {
@@ -161,10 +167,30 @@ public final class CommandSilentAuth extends CommandBase {
         reply(sender, "\u00a7aBack on " + SessionSwapper.originalUsername());
     }
 
+    /** Joins a server through the active proxy, guaranteed race free. */
+    private void join(ICommandSender sender, String[] args) {
+        if (args.length < 2) {
+            reply(sender, "\u00a7cUsage: /sa join <address>");
+            return;
+        }
+        final String address = args[1];
+        reply(sender, "\u00a77Connecting to " + address
+                + (SilentAuth.proxies().getDefault() == null ? "" : " through the proxy"));
+        Minecraft.getMinecraft().addScheduledTask(new Runnable() {
+            @Override
+            public void run() {
+                Minecraft mc = Minecraft.getMinecraft();
+                ProxiedConnect.connect(mc.currentScreen, address);
+            }
+        });
+    }
+
     private void proxy(ICommandSender sender, String[] args) {
         String action = args.length < 2 ? "" : args[1].toLowerCase();
         if (action.equals("list")) {
             proxyList(sender);
+        } else if (action.equals("check")) {
+            proxyCheck(sender);
         } else if (action.equals("add")) {
             proxyAdd(sender, args);
         } else if (action.equals("default")) {
@@ -174,8 +200,46 @@ public final class CommandSilentAuth extends CommandBase {
             LoginService.applyCurrentProxy();
             reply(sender, "\u00a77Default proxy cleared");
         } else {
-            reply(sender, "\u00a7cUsage: /sa proxy <list|add|default|off>");
+            reply(sender, "\u00a7cUsage: /sa proxy <list|add|default|off|check>");
         }
+    }
+
+    /** Reports the exit IP through the default proxy next to the direct one, to prove it changes. */
+    private void proxyCheck(final ICommandSender sender) {
+        final ProxyEntry proxy = SilentAuth.proxies().getDefault();
+        if (proxy == null) {
+            reply(sender, "\u00a7cNo proxy is in use. Pick one on the Proxies screen first");
+            return;
+        }
+        reply(sender, "\u00a77Checking what " + proxy.describe() + " looks like from outside...");
+        Async.run(new Runnable() {
+            @Override
+            public void run() {
+                String direct;
+                try {
+                    direct = IpCheck.exitIp(null);
+                } catch (IOException e) {
+                    direct = "unknown";
+                }
+                String through;
+                try {
+                    through = IpCheck.exitIp(proxy);
+                } catch (IOException e) {
+                    reply(sender, "\u00a7cThe proxy did not answer: " + e.getMessage());
+                    reply(sender, "\u00a7cThat proxy is dead, nothing can go through it");
+                    return;
+                }
+                reply(sender, "\u00a77Your real IP: \u00a7f" + direct);
+                reply(sender, "\u00a77Through the proxy: \u00a7f" + through);
+                if (through.equals(direct)) {
+                    reply(sender, "\u00a7cThey match, the proxy is NOT changing your IP. "
+                            + "Servers still see you, use a different proxy");
+                } else {
+                    reply(sender, "\u00a7aThe proxy changes your IP. If a server still blocks you, "
+                            + "that proxy IP is already used or flagged, try another");
+                }
+            }
+        });
     }
 
     private void proxyList(ICommandSender sender) {

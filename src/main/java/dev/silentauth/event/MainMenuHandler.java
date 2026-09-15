@@ -1,6 +1,7 @@
 package dev.silentauth.event;
 
 import dev.silentauth.SilentAuth;
+import dev.silentauth.account.LoginService;
 import dev.silentauth.gui.GuiAccountManager;
 import dev.silentauth.net.ProxiedConnect;
 import net.minecraft.client.Minecraft;
@@ -65,9 +66,34 @@ public final class MainMenuHandler {
     }
 
     /**
-     * Every join - server list, double click, direct connect or LAN - opens a
-     * {@link GuiConnecting}. This is the one place all of them pass through, so the game
-     * connection is rerouted through the proxy here.
+     * The "Join Server" button, intercepted before vanilla can build a connecting screen, so
+     * the proxied connection is the only one that ever opens - no race with a direct socket.
+     * Double click and LAN cannot be caught this early and fall back to {@link #onGuiOpen}.
+     */
+    @SubscribeEvent
+    public void onJoinButton(GuiScreenEvent.ActionPerformedEvent.Pre event) {
+        if (!(event.gui instanceof GuiMultiplayer) || event.button == null || event.button.id != 1) {
+            return;
+        }
+        if (!SilentAuth.config().isRouteGameThroughProxy()) {
+            return;
+        }
+        if (LoginService.resolveProxy(SilentAuth.accounts().getActive()) == null) {
+            return;
+        }
+        String ip = ProxiedConnect.selectedServerIp((GuiMultiplayer) event.gui);
+        if (ip == null) {
+            return;
+        }
+        event.setCanceled(true);
+        ProxiedConnect.connect(event.gui, ip);
+    }
+
+    /**
+     * Catch-all for joins that cannot be intercepted before their connecting screen is built -
+     * a double click or a LAN entry. Best effort: it cancels the direct connect and reroutes,
+     * which wins the race in practice but is not guaranteed, so the Join button and
+     * {@code /sa join} above are the sure paths.
      */
     @SubscribeEvent
     public void onGuiOpen(GuiOpenEvent event) {
