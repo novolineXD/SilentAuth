@@ -2,8 +2,10 @@ package dev.silentauth.gui;
 
 import dev.silentauth.SilentAuth;
 import dev.silentauth.account.LoginService;
+import dev.silentauth.net.IpCheck;
 import dev.silentauth.proxy.ProxyEntry;
 import dev.silentauth.proxy.ProxyParser;
+import dev.silentauth.util.Async;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -93,6 +95,37 @@ public final class GuiProxyManager extends SilentAuthScreen {
 
     private void refreshList() {
         shown = SilentAuth.proxies().all();
+    }
+
+    /**
+     * Fetches the IP this proxy actually shows to the outside world and compares it with the
+     * direct one, so it is obvious right here - before joining anything - whether the proxy is
+     * really hiding the player or not.
+     */
+    private void checkExitIp(final ProxyEntry entry) {
+        Async.run(new Runnable() {
+            @Override
+            public void run() {
+                String through;
+                try {
+                    through = IpCheck.exitIp(entry);
+                } catch (IOException e) {
+                    error(entry.describe() + " did not answer, it is dead");
+                    return;
+                }
+                String direct;
+                try {
+                    direct = IpCheck.exitIp(null);
+                } catch (IOException e) {
+                    direct = "";
+                }
+                if (!direct.isEmpty() && through.equals(direct)) {
+                    error("This proxy shows your real IP (" + through + "). It will not hide you");
+                } else {
+                    ok("In use - servers will see " + through);
+                }
+            }
+        });
     }
 
     // ------------------------------------------------------------------ actions
@@ -206,7 +239,7 @@ public final class GuiProxyManager extends SilentAuthScreen {
 
         fontRendererObj.drawString("host:port   user:pass@host:port   socks5://   http://",
                 left + 20, listTop + listHeight + 6, Theme.TEXT_FAINT);
-        drawStatus(listTop + listHeight + 20);
+        drawStatusOr(listTop + listHeight + 20, "Click a proxy to use it    the x on a row removes it");
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -233,7 +266,8 @@ public final class GuiProxyManager extends SilentAuthScreen {
                 info("Going out directly again");
             } else {
                 SilentAuth.proxies().setDefault(entry);
-                ok("Using " + entry.describe());
+                info("Checking what IP this proxy shows");
+                checkExitIp(entry);
             }
             LoginService.applyCurrentProxy();
         }

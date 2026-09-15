@@ -273,7 +273,7 @@ public final class GuiAccountManager extends SilentAuthScreen {
                 FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
         list.draw(mouseX, mouseY);
 
-        drawStatus(listTop + listHeight + 4);
+        drawStatusOr(listTop + listHeight + 4, "Click a name to play    the x on a row removes it");
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 

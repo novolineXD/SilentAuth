@@ -57,6 +57,15 @@ abstract class SilentAuthScreen extends GuiScreen {
         drawCenteredString(fontRendererObj, busy ? current + "..." : current, width / 2, y, messageColour);
     }
 
+    /** Draws the status where there is one, otherwise a faint standing hint in its place. */
+    protected final void drawStatusOr(int y, String hint) {
+        if (message.isEmpty()) {
+            drawCenteredString(fontRendererObj, hint, width / 2, y, Theme.TEXT_FAINT);
+        } else {
+            drawStatus(y);
+        }
+    }
+
     // ------------------------------------------------------------------ chrome
 
     protected final void drawBackdrop() {

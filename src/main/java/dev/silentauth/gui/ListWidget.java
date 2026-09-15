@@ -77,7 +77,7 @@ abstract class ListWidget extends Gui {
 
             if (isRemovable(index)) {
                 boolean overRemove = hovered && mouseX >= x + width - REMOVE_WIDTH;
-                drawRemove(x + width - REMOVE_WIDTH, rowY, overRemove);
+                drawRemove(x + width - REMOVE_WIDTH, rowY, hovered, overRemove);
             }
         }
 
@@ -87,14 +87,19 @@ abstract class ListWidget extends Gui {
         drawScrollbar();
     }
 
-    /** A small x, drawn rather than using a glyph so it lines up at any scale. */
-    private void drawRemove(int left, int rowY, boolean hovered) {
+    /**
+     * A remove button: a rounded well with an x, drawn rather than using a glyph so it lines up
+     * at any scale. It sits in a visible pill while its row is hovered and turns red when the
+     * pointer is over it, so it reads as something you can click rather than decoration.
+     */
+    private void drawRemove(int left, int rowY, boolean rowHovered, boolean overRemove) {
         int centreX = left + REMOVE_WIDTH / 2;
         int centreY = rowY + rowHeight / 2;
-        if (hovered) {
-            Draw.rounded(centreX - 9, centreY - 9, centreX + 9, centreY + 9, 6.0F, Theme.ROW_HOVER);
+        if (rowHovered || overRemove) {
+            Draw.rounded(centreX - 9, centreY - 9, centreX + 9, centreY + 9, 6.0F,
+                    overRemove ? 0x33F38BA8 : Theme.ROW_HOVER);
         }
-        int colour = hovered ? Theme.DANGER : Theme.TEXT_FAINT;
+        int colour = overRemove ? Theme.DANGER : rowHovered ? Theme.TEXT : Theme.TEXT_DIM;
         Draw.line(centreX - 3.5F, centreY - 3.5F, centreX + 3.5F, centreY + 3.5F, 1.4F, colour);
         Draw.line(centreX - 3.5F, centreY + 3.5F, centreX + 3.5F, centreY - 3.5F, 1.4F, colour);
     }
