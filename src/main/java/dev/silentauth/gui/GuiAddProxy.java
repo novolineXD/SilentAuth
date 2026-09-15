@@ -76,7 +76,7 @@ public final class GuiAddProxy extends GuiScreen {
             SilentAuth.tester().testAsync(entry, null);
             mc.displayGuiScreen(parent);
         } catch (IllegalArgumentException e) {
-            status = "§c" + e.getMessage();
+            status = "\u00a7c" + e.getMessage();
         }
     }
 
@@ -119,11 +119,11 @@ public final class GuiAddProxy extends GuiScreen {
         drawCenteredString(fontRendererObj, "Add a proxy", width / 2, 14, 0xFFFFFF);
 
         int left = width / 2 - 150;
-        fontRendererObj.drawString("§7Proxy", left, 46, 0xAAAAAA);
+        fontRendererObj.drawString("\u00a77Proxy", left, 46, 0xAAAAAA);
         addressField.drawTextBox();
-        fontRendererObj.drawString("§7Label (optional)", left, 86, 0xAAAAAA);
+        fontRendererObj.drawString("\u00a77Label (optional)", left, 86, 0xAAAAAA);
         labelField.drawTextBox();
-        fontRendererObj.drawString("§8host:port  host:port:user:pass  socks5://user:pass@host:port", left, 150,
+        fontRendererObj.drawString("\u00a78host:port  host:port:user:pass  socks5://user:pass@host:port", left, 150,
                 0x888888);
 
         if (!status.isEmpty()) {

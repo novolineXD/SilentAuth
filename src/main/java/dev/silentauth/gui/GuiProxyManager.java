@@ -4,17 +4,11 @@ import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.proxy.ProxyEntry;
-import dev.silentauth.util.Async;
-import dev.silentauth.util.Log;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.input.Keyboard;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,10 +40,10 @@ public final class GuiProxyManager extends GuiScreen {
             public void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered, boolean isSelected) {
                 ProxyEntry entry = shown.get(index);
                 boolean isDefault = SilentAuth.proxies().isDefault(entry);
-                String name = (isDefault ? "§a" : "§f") + entry.displayName();
+                String name = (isDefault ? "\u00a7a" : "\u00a7f") + entry.displayName();
                 fontRendererObj.drawString(name, rowX, rowY, 0xFFFFFF);
-                fontRendererObj.drawString("§7" + entry.getType().getLabel()
-                        + (entry.hasCredentials() ? " §8| §7auth" : ""), rowX, rowY + 10, 0xAAAAAA);
+                fontRendererObj.drawString("\u00a77" + entry.getType().getLabel()
+                        + (entry.hasCredentials() ? " \u00a78| \u00a77auth" : ""), rowX, rowY + 10, 0xAAAAAA);
 
                 String state = entry.statusText();
                 int color = entry.getLatencyMs() >= 0 ? 0x55FF55
@@ -68,9 +62,8 @@ public final class GuiProxyManager extends GuiScreen {
         buttonList.add(new GuiButton(3, left + 208, rowOne, 100, 20, "Test"));
         buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Test all"));
         buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Set default"));
-        buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Import file"));
-        buttonList.add(new GuiButton(7, left, rowThree, 152, 20, "Bind to account"));
-        buttonList.add(new GuiButton(8, left + 156, rowThree, 152, 20, "Back"));
+        buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Bind to account"));
+        buttonList.add(new GuiButton(7, left, rowThree, 308, 20, "Back"));
     }
 
     private void refreshList() {
@@ -94,42 +87,39 @@ public final class GuiProxyManager extends GuiScreen {
                 break;
             case 2:
                 if (entry == null) {
-                    status = "§cPick a proxy first";
+                    status = "\u00a7cPick a proxy first";
                     break;
                 }
                 SilentAuth.proxies().remove(entry);
                 list.clearSelection();
                 refreshList();
-                status = "§7Removed " + entry.describe();
+                status = "\u00a77Removed " + entry.describe();
                 break;
             case 3:
                 if (entry == null) {
-                    status = "§cPick a proxy first";
+                    status = "\u00a7cPick a proxy first";
                     break;
                 }
-                status = "§7Testing " + entry.describe();
+                status = "\u00a77Testing " + entry.describe();
                 SilentAuth.tester().testAsync(entry, null);
                 break;
             case 4:
-                status = "§7Testing " + shown.size() + " proxies";
+                status = "\u00a77Testing " + shown.size() + " proxies";
                 SilentAuth.tester().testAll(shown, null);
                 break;
             case 5:
                 if (entry == null) {
-                    status = "§cPick a proxy first";
+                    status = "\u00a7cPick a proxy first";
                     break;
                 }
                 SilentAuth.proxies().setDefault(entry);
                 LoginService.applyCurrentProxy();
-                status = "§a" + entry.describe() + " is now the default";
+                status = "\u00a7a" + entry.describe() + " is now the default";
                 break;
             case 6:
-                importFile();
-                break;
-            case 7:
                 bindToAccount(entry);
                 break;
-            case 8:
+            case 7:
                 mc.displayGuiScreen(parent);
                 break;
             default:
@@ -140,47 +130,14 @@ public final class GuiProxyManager extends GuiScreen {
     private void bindToAccount(ProxyEntry entry) {
         Account active = SilentAuth.accounts().getActive();
         if (active == null) {
-            status = "§cLog in to an account first";
+            status = "\u00a7cLog in to an account first";
             return;
         }
         active.setProxyId(entry == null ? "" : entry.getId());
         SilentAuth.accounts().save();
         LoginService.applyCurrentProxy();
-        status = "§a" + active.getUsername() + " now uses "
+        status = "\u00a7a" + active.getUsername() + " now uses "
                 + (entry == null ? "no proxy" : entry.describe());
-    }
-
-    private void importFile() {
-        final File file = new File(SilentAuth.get().getDirectory(), "proxies.txt");
-        if (!file.isFile()) {
-            status = "§cPut one proxy per line in " + file.getName();
-            return;
-        }
-        Async.run(new Runnable() {
-            @Override
-            public void run() {
-                List<String> lines = new ArrayList<String>();
-                try {
-                    BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(new FileInputStream(file), "UTF-8"));
-                    try {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            lines.add(line);
-                        }
-                    } finally {
-                        reader.close();
-                    }
-                } catch (IOException e) {
-                    status = "§cCould not read " + file.getName();
-                    Log.warn("Proxy import failed", e);
-                    return;
-                }
-                int added = SilentAuth.proxies().importLines(lines, SilentAuth.config().getDefaultProxyType());
-                refreshList();
-                status = "§aImported " + added + " proxies";
-            }
-        });
     }
 
     @Override

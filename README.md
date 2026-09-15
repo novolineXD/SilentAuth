@@ -1,13 +1,13 @@
 # SilentAuth
 
-Account manager for Minecraft 1.8.9 (Forge). Everything happens in the menus: add a session
-token, sign in with a Microsoft account, bind proxies, switch the running session. No server
-is ever joined by the mod itself.
+Account manager for Minecraft 1.8.9 (Forge). Session tokens and proxies are typed straight
+into the game: there are no config files to edit, no lists to prepare, and no server is ever
+joined by the mod itself.
 
 ## Features
 
-- **Session token login** - paste a token or import a list of them, the profile endpoint
-  fills in the name and uuid, and the session is swapped in place without restarting.
+- **Session token login** - paste a token, the profile endpoint fills in the name and uuid,
+  and the session is swapped in place without restarting the game.
 - **Microsoft device code sign in** - no password is ever typed into the game. A code is
   shown, you enter it at `microsoft.com/link`, and the refresh token is stored so the
   account can be reused later.
@@ -15,8 +15,6 @@ is ever joined by the mod itself.
 - **Proxies** - HTTP, SOCKS4 and SOCKS5, with or without credentials. Each account can be
   bound to its own proxy, or a default can be set for everything. Every token check, sign in
   and session-server call then goes out through it.
-- **Bulk import** - a text file of tokens and a text file of proxies, both read from the
-  config folder.
 - **Encrypted storage** - tokens are stored AES-GCM encrypted under a key file next to them,
   never in plain text, and never written to the log.
 
@@ -37,38 +35,34 @@ For IDEA: run `gradle setupDecompWorkspace idea` first, then import the project.
 
 ## Using it
 
-A **SilentAuth** button sits in the top left of the main menu and the server list, so the
-whole mod is reachable straight from the title screen. Right shift opens the same screen in
-game, and `/sa` works from chat.
+Start the game and open **Multiplayer**. The **SilentAuth** button sits in the top left of
+that screen (and of the title screen). Everything happens from there.
 
-| Command | What it does |
-| --- | --- |
-| `/sa` or `/sa gui` | opens the account screen |
-| `/sa list` | lists stored accounts |
-| `/sa login <name>` | switches to a stored account |
-| `/sa status` | shows the current session and proxy |
-| `/sa proxy list` | lists proxies with their last latency |
-| `/sa proxy add <proxy>` | adds a proxy |
-| `/sa proxy default <host:port>` | sets the default proxy |
-| `/sa proxy off` | stops using a default proxy |
+### Adding a session token
 
-### Importing tokens
+```
+Multiplayer -> SilentAuth -> Add account -> paste into the token field -> Add
+```
 
-`Import file` on the account screen reads `config/silentauth/accounts.txt`, one account per
-line, `#` for comments. The shape of each field is detected, so all of these work:
+The type button cycles between **Session**, **Microsoft** and **Offline**. On Session the
+pasted text is read by shape, so any of these work as they are:
 
 ```
 eyJhbGciOiJIUzI1NiJ9.token.here
 Notch:eyJhbGciOiJIUzI1NiJ9.token.here
 token:eyJhbGciOiJIUzI1NiJ9.token.here:069a79f444e94726a5befca90e38aaf5
-Notch:069a79f444e94726a5befca90e38aaf5:eyJhbGciOiJIUzI1NiJ9.token.here
+Notch:069a79f4-44e9-4726-a5be-fca90e38aaf5:eyJhbGciOiJIUzI1NiJ9.token.here
 ```
 
-A line that carries both a name and a uuid is stored as is. A line with only a token is
-looked up against the profile endpoint through the selected proxy, which also confirms the
-token still works.
+A name and uuid found in the paste, or typed into the two optional fields, are used as they
+are. Otherwise the token is looked up against the profile endpoint, which also confirms it
+still works. The proxy button on the same screen picks which proxy that check goes through.
 
-### Proxy formats
+### Adding a proxy
+
+```
+Multiplayer -> SilentAuth -> Proxies -> Add -> paste into the proxy field -> Save
+```
 
 ```
 1.2.3.4:1080
@@ -78,23 +72,33 @@ socks5://user:pass@1.2.3.4:1080
 http://1.2.3.4:8080
 ```
 
-Without a scheme the type from the config (`defaultType`, SOCKS5 out of the box) is used.
-`Import file` on the proxy screen reads `config/silentauth/proxies.txt` the same way, and
-`Test` opens a real connection through the proxy to measure it.
+Without a scheme the type from the type button is assumed. Saving tests the proxy straight
+away and the list shows the latency, or why it failed.
 
-`Set proxy` on the account screen steps the selected account through the stored proxies and
-then back to the default, so an account can be pointed at its own proxy before it is ever
-used.
+### The rest of the screens
 
-### Where things are stored
+| Screen | Buttons |
+| --- | --- |
+| Accounts | Log in, Add account, Remove, Check token, Set proxy, Proxies |
+| Proxies | Add, Remove, Test, Test all, Set default, Bind to account |
+
+`Set proxy` steps the selected account through the stored proxies and then back to the
+default, so an account can be pointed at its own proxy before it is ever used. The search box
+at the top of the account list filters by name or type.
+
+Right shift opens the same screen in game. `/sa` works from chat as a shortcut for anything
+above: `/sa list`, `/sa login <name>`, `/sa status`, `/sa proxy list`, `/sa proxy add <proxy>`,
+`/sa proxy default <host:port>`, `/sa proxy off`.
+
+### Where things are kept
+
+The mod writes these itself; nothing here has to be opened by hand.
 
 ```
 config/silentauth/silentauth.cfg   settings
 config/silentauth/accounts.json    accounts, tokens encrypted
 config/silentauth/proxies.json     proxies, passwords encrypted
 config/silentauth/key.bin          local key, owner readable only
-config/silentauth/accounts.txt     optional import list
-config/silentauth/proxies.txt      optional import list
 ```
 
 Delete `key.bin` and every stored token becomes unreadable, which is the quickest way to

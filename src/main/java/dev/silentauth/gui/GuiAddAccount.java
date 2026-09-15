@@ -3,6 +3,7 @@ package dev.silentauth.gui;
 import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
 import dev.silentauth.account.AccountType;
+import dev.silentauth.account.TokenParser;
 import dev.silentauth.auth.AuthException;
 import dev.silentauth.auth.SessionTokenAuth;
 import dev.silentauth.proxy.ProxyEntry;
@@ -137,44 +138,55 @@ public final class GuiAddAccount extends GuiScreen {
         if (mode == AccountType.OFFLINE) {
             String name = nameField.getText().trim();
             if (name.isEmpty() || name.length() > 16) {
-                status = "§cEnter a username of 1 to 16 characters";
+                status = "\u00a7cEnter a username of 1 to 16 characters";
                 return;
             }
             Account account = Account.offline(name);
             SilentAuth.accounts().add(account);
-            status = "§aAdded " + name;
+            status = "\u00a7aAdded " + name;
             return;
         }
 
-        final String token = tokenField.getText().trim();
-        final String name = nameField.getText().trim();
-        final String uuid = uuidField.getText().trim();
-        final ProxyEntry proxy = chosenProxy();
-        if (token.isEmpty()) {
-            status = "§cPaste a session token first";
+        String pasted = tokenField.getText().trim();
+        if (pasted.isEmpty()) {
+            status = "\u00a7cPaste a session token first";
             return;
         }
+
+        final TokenParser.Parsed parsed;
+        try {
+            parsed = TokenParser.parse(pasted);
+        } catch (IllegalArgumentException e) {
+            status = "\u00a7c" + e.getMessage();
+            return;
+        }
+
+        String typedName = nameField.getText().trim();
+        String typedUuid = uuidField.getText().trim();
+        final String name = typedName.isEmpty() ? parsed.username : typedName;
+        final String uuid = typedUuid.isEmpty() ? parsed.uuid : typedUuid;
+        final ProxyEntry proxy = chosenProxy();
 
         busy = true;
         updateLabels();
-        status = "§7Checking the token";
+        status = "\u00a77Checking the token";
         Async.run(new Runnable() {
             @Override
             public void run() {
                 try {
                     Account account;
                     if (!name.isEmpty() && !uuid.isEmpty()) {
-                        account = SessionTokenAuth.withoutLookup(token, name, uuid);
+                        account = SessionTokenAuth.withoutLookup(parsed.token, name, uuid);
                     } else {
-                        account = SessionTokenAuth.login(token, proxy);
+                        account = SessionTokenAuth.login(parsed.token, proxy);
                     }
                     if (proxy != null) {
                         account.setProxyId(proxy.getId());
                     }
                     SilentAuth.accounts().add(account);
-                    status = "§aAdded " + account.getUsername();
+                    status = "\u00a7aAdded " + account.getUsername();
                 } catch (AuthException e) {
-                    status = "§c" + e.getMessage();
+                    status = "\u00a7c" + e.getMessage();
                 } finally {
                     busy = false;
                 }
@@ -227,21 +239,23 @@ public final class GuiAddAccount extends GuiScreen {
 
         int left = width / 2 - 150;
         if (mode == AccountType.SESSION) {
-            fontRendererObj.drawString("§7Session token", left, 50, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77Session token", left, 50, 0xAAAAAA);
             tokenField.drawTextBox();
-            fontRendererObj.drawString("§7Username (optional)", left, 90, 0xAAAAAA);
-            fontRendererObj.drawString("§7UUID (optional)", left + 154, 90, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77Username (optional)", left, 90, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77UUID (optional)", left + 154, 90, 0xAAAAAA);
             nameField.drawTextBox();
             uuidField.drawTextBox();
-            fontRendererObj.drawString("§8Fill both to skip the profile lookup", left, 122, 0x888888);
+            fontRendererObj.drawString("\u00a78A pasted name, uuid or token: prefix is picked up on its own",
+                    left, 122, 0x888888);
+            fontRendererObj.drawString("\u00a78Fill both fields to skip the profile lookup", left, 134, 0x888888);
         } else if (mode == AccountType.OFFLINE) {
-            fontRendererObj.drawString("§7Username", left, 90, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77Username", left, 90, 0xAAAAAA);
             nameField.drawTextBox();
-            fontRendererObj.drawString("§8Offline accounts only work on servers in offline mode", left, 122,
+            fontRendererObj.drawString("\u00a78Offline accounts only work on servers in offline mode", left, 122,
                     0x888888);
         } else {
-            fontRendererObj.drawString("§7A code is shown on the next screen, type it at", left, 70, 0xAAAAAA);
-            fontRendererObj.drawString("§7microsoft.com/link to finish the sign in", left, 82, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77A code is shown on the next screen, type it at", left, 70, 0xAAAAAA);
+            fontRendererObj.drawString("\u00a77microsoft.com/link to finish the sign in", left, 82, 0xAAAAAA);
         }
 
         if (!status.isEmpty()) {

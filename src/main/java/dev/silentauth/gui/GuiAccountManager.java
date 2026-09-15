@@ -2,17 +2,14 @@ package dev.silentauth.gui;
 
 import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
-import dev.silentauth.account.AccountImporter;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.account.SessionSwapper;
 import dev.silentauth.proxy.ProxyEntry;
-import dev.silentauth.util.Async;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Keyboard;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,13 +50,13 @@ public final class GuiAccountManager extends GuiScreen {
             public void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered, boolean isSelected) {
                 Account account = shown.get(index);
                 boolean active = SilentAuth.accounts().isActive(account);
-                String name = (active ? "§a" : "§f") + account.getUsername();
+                String name = (active ? "\u00a7a" : "\u00a7f") + account.getUsername();
                 fontRendererObj.drawString(name, rowX, rowY, 0xFFFFFF);
 
-                String detail = "§7" + account.getType().getLabel();
+                String detail = "\u00a77" + account.getType().getLabel();
                 ProxyEntry proxy = LoginService.resolveProxy(account);
                 if (proxy != null) {
-                    detail += " §8| §7" + proxy.describe();
+                    detail += " \u00a78| \u00a77" + proxy.describe();
                 }
                 fontRendererObj.drawString(detail, rowX, rowY + 10, 0xAAAAAA);
 
@@ -81,10 +78,9 @@ public final class GuiAccountManager extends GuiScreen {
         buttonList.add(new GuiButton(2, left + 104, rowOne, 100, 20, "Add account"));
         buttonList.add(new GuiButton(3, left + 208, rowOne, 100, 20, "Remove"));
         buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Check token"));
-        buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Import file"));
+        buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Set proxy"));
         buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Proxies"));
-        buttonList.add(new GuiButton(7, left, rowThree, 152, 20, "Set proxy"));
-        buttonList.add(new GuiButton(8, left + 156, rowThree, 152, 20, "Done"));
+        buttonList.add(new GuiButton(7, left, rowThree, 308, 20, "Done"));
 
         refreshList();
     }
@@ -117,15 +113,12 @@ public final class GuiAccountManager extends GuiScreen {
                 checkSelected();
                 break;
             case 5:
-                importFile();
+                cycleProxy();
                 break;
             case 6:
                 mc.displayGuiScreen(new GuiProxyManager(this));
                 break;
             case 7:
-                cycleProxy();
-                break;
-            case 8:
                 mc.displayGuiScreen(parent);
                 break;
             default:
@@ -136,16 +129,16 @@ public final class GuiAccountManager extends GuiScreen {
     private void loginSelected() {
         Account account = selected();
         if (account == null) {
-            status = "§cPick an account first";
+            status = "\u00a7cPick an account first";
             return;
         }
         busy = true;
-        status = "§7Switching to " + account.getUsername();
+        status = "\u00a77Switching to " + account.getUsername();
         LoginService.loginAsync(account, new LoginService.Callback() {
             @Override
             public void onResult(boolean success, String message) {
                 busy = false;
-                status = (success ? "§a" : "§c") + message;
+                status = (success ? "\u00a7a" : "\u00a7c") + message;
             }
         });
     }
@@ -153,16 +146,16 @@ public final class GuiAccountManager extends GuiScreen {
     private void checkSelected() {
         Account account = selected();
         if (account == null) {
-            status = "§cPick an account first";
+            status = "\u00a7cPick an account first";
             return;
         }
         busy = true;
-        status = "§7Checking " + account.getUsername();
+        status = "\u00a77Checking " + account.getUsername();
         LoginService.validateAsync(account, new LoginService.Callback() {
             @Override
             public void onResult(boolean success, String message) {
                 busy = false;
-                status = (success ? "§a" : "§c") + message;
+                status = (success ? "\u00a7a" : "\u00a7c") + message;
             }
         });
     }
@@ -170,12 +163,12 @@ public final class GuiAccountManager extends GuiScreen {
     private void cycleProxy() {
         Account account = selected();
         if (account == null) {
-            status = "§cPick an account first";
+            status = "\u00a7cPick an account first";
             return;
         }
         List<ProxyEntry> available = SilentAuth.proxies().all();
         if (available.isEmpty()) {
-            status = "§cNo proxies stored yet";
+            status = "\u00a7cNo proxies stored yet";
             return;
         }
 
@@ -191,65 +184,26 @@ public final class GuiAccountManager extends GuiScreen {
         if (index >= available.size()) {
             account.setProxyId("");
             ProxyEntry fallback = SilentAuth.proxies().getDefault();
-            status = "§7" + account.getUsername() + " follows the default ("
+            status = "\u00a77" + account.getUsername() + " follows the default ("
                     + (fallback == null ? "none" : fallback.describe()) + ")";
         } else {
             ProxyEntry chosen = available.get(index);
             account.setProxyId(chosen.getId());
-            status = "§a" + account.getUsername() + " uses " + chosen.describe();
+            status = "\u00a7a" + account.getUsername() + " uses " + chosen.describe();
         }
         SilentAuth.accounts().save();
-    }
-
-    private void importFile() {
-        if (busy) {
-            return;
-        }
-        final File file = new File(SilentAuth.get().getDirectory(), "accounts.txt");
-        if (!file.isFile()) {
-            status = "§cPut one token per line in " + file.getName();
-            return;
-        }
-        busy = true;
-        status = "§7Reading " + file.getName();
-        Async.run(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    List<String> lines = AccountImporter.readLines(file);
-                    if (lines.isEmpty()) {
-                        status = "§c" + file.getName() + " is empty";
-                        return;
-                    }
-                    AccountImporter.Result result = AccountImporter.importAll(lines,
-                            LoginService.resolveAuthProxy(null), new AccountImporter.Progress() {
-                                @Override
-                                public void onProgress(int done, int total, String line) {
-                                    status = "§7Checking token " + (done + 1) + " of " + total;
-                                }
-                            });
-                    refreshList();
-                    status = "§aImported " + result.added
-                            + (result.failed > 0 ? " §c(" + result.failed + " skipped)" : "");
-                } catch (IOException e) {
-                    status = "§cCould not read " + file.getName();
-                } finally {
-                    busy = false;
-                }
-            }
-        });
     }
 
     private void removeSelected() {
         Account account = selected();
         if (account == null) {
-            status = "§cPick an account first";
+            status = "\u00a7cPick an account first";
             return;
         }
         SilentAuth.accounts().remove(account);
         list.clearSelection();
         refreshList();
-        status = "§7Removed " + account.getUsername();
+        status = "\u00a77Removed " + account.getUsername();
     }
 
     @Override
@@ -293,14 +247,14 @@ public final class GuiAccountManager extends GuiScreen {
         drawCenteredString(fontRendererObj, "SilentAuth", width / 2, 10, 0xFFFFFF);
         searchField.drawTextBox();
         if (searchField.getText().isEmpty() && !searchField.isFocused()) {
-            fontRendererObj.drawString("§8Search", width / 2 - 145, 28, 0x888888);
+            fontRendererObj.drawString("\u00a78Search", width / 2 - 145, 28, 0x888888);
         }
         list.draw(mouseX, mouseY);
 
-        String footer = "§7Session: §f" + SessionSwapper.currentUsername();
+        String footer = "\u00a77Session: \u00a7f" + SessionSwapper.currentUsername();
         ProxyEntry activeProxy = LoginService.resolveProxy(SilentAuth.accounts().getActive());
         if (activeProxy != null) {
-            footer += " §8| §7" + activeProxy.describe();
+            footer += " \u00a78| \u00a77" + activeProxy.describe();
         }
         drawCenteredString(fontRendererObj, footer, width / 2, height - 106, 0xFFFFFF);
         if (!status.isEmpty()) {

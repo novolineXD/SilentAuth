@@ -68,10 +68,10 @@ public final class GuiDeviceLogin extends GuiScreen {
                     }
                     SilentAuth.accounts().add(account);
                     finished = true;
-                    status = "§aAdded " + account.getUsername();
+                    status = "\u00a7aAdded " + account.getUsername();
                 } catch (AuthException e) {
                     finished = true;
-                    status = "§c" + e.getMessage();
+                    status = "\u00a7c" + e.getMessage();
                     Log.warn("Microsoft sign in failed: " + e.getMessage());
                 }
             }
@@ -84,7 +84,7 @@ public final class GuiDeviceLogin extends GuiScreen {
             case 1:
                 if (code != null) {
                     setClipboardString(code.getUserCode());
-                    status = "§aCode copied";
+                    status = "\u00a7aCode copied";
                 }
                 break;
             case 2:
@@ -104,7 +104,7 @@ public final class GuiDeviceLogin extends GuiScreen {
         try {
             Sys.openURL(uri);
         } catch (Throwable t) {
-            status = "§cCould not open a browser, go to " + uri;
+            status = "\u00a7cCould not open a browser, go to " + uri;
         }
     }
 
@@ -123,15 +123,15 @@ public final class GuiDeviceLogin extends GuiScreen {
 
         DeviceCode current = code;
         if (current != null) {
-            drawCenteredString(fontRendererObj, "§f" + current.getUserCode(), width / 2, 60, 0xFFFFFF);
+            drawCenteredString(fontRendererObj, "\u00a7f" + current.getUserCode(), width / 2, 60, 0xFFFFFF);
             if (!finished) {
-                drawCenteredString(fontRendererObj, "§8expires in " + current.getSecondsLeft() + "s", width / 2,
+                drawCenteredString(fontRendererObj, "\u00a78expires in " + current.getSecondsLeft() + "s", width / 2,
                         76, 0x888888);
             }
         }
         drawCenteredString(fontRendererObj, status, width / 2, 100, 0xFFFFFF);
         if (proxy != null) {
-            drawCenteredString(fontRendererObj, "§8through " + proxy.describe(), width / 2, 116, 0x888888);
+            drawCenteredString(fontRendererObj, "\u00a78through " + proxy.describe(), width / 2, 116, 0x888888);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

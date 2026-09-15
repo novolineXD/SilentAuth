@@ -66,98 +66,98 @@ public final class CommandSilentAuth extends CommandBase {
         } else if (sub.equals("proxy")) {
             proxy(sender, args);
         } else {
-            reply(sender, "§cUnknown option, use " + getCommandUsage(sender));
+            reply(sender, "\u00a7cUnknown option, use " + getCommandUsage(sender));
         }
     }
 
     private void list(ICommandSender sender) {
         List<Account> accounts = SilentAuth.accounts().all();
         if (accounts.isEmpty()) {
-            reply(sender, "§7No accounts stored yet");
+            reply(sender, "\u00a77No accounts stored yet");
             return;
         }
-        reply(sender, "§7" + accounts.size() + " accounts:");
+        reply(sender, "\u00a77" + accounts.size() + " accounts:");
         for (Account account : accounts) {
             ProxyEntry proxy = LoginService.resolveProxy(account);
-            reply(sender, "§8- §f" + account.getUsername() + " §7" + account.getType().getLabel()
-                    + (proxy == null ? "" : " §8via §7" + proxy.describe()));
+            reply(sender, "\u00a78- \u00a7f" + account.getUsername() + " \u00a77" + account.getType().getLabel()
+                    + (proxy == null ? "" : " \u00a78via \u00a77" + proxy.describe()));
         }
     }
 
     private void status(ICommandSender sender) {
         Account active = SilentAuth.accounts().getActive();
-        reply(sender, "§7Session: §f" + SessionSwapper.currentUsername());
+        reply(sender, "\u00a77Session: \u00a7f" + SessionSwapper.currentUsername());
         ProxyEntry proxy = LoginService.resolveProxy(active);
-        reply(sender, "§7Proxy: §f" + (proxy == null ? "none" : proxy.describe() + " " + proxy.statusText()));
+        reply(sender, "\u00a77Proxy: \u00a7f" + (proxy == null ? "none" : proxy.describe() + " " + proxy.statusText()));
     }
 
     private void login(final ICommandSender sender, String[] args) {
         if (args.length < 2) {
-            reply(sender, "§cUsage: /sa login <username>");
+            reply(sender, "\u00a7cUsage: /sa login <username>");
             return;
         }
         Account account = SilentAuth.accounts().byUsername(args[1]);
         if (account == null) {
-            reply(sender, "§cNo stored account called " + args[1]);
+            reply(sender, "\u00a7cNo stored account called " + args[1]);
             return;
         }
-        reply(sender, "§7Switching to " + account.getUsername());
+        reply(sender, "\u00a77Switching to " + account.getUsername());
         LoginService.loginAsync(account, new LoginService.Callback() {
             @Override
             public void onResult(boolean success, String message) {
-                reply(sender, (success ? "§a" : "§c") + message);
+                reply(sender, (success ? "\u00a7a" : "\u00a7c") + message);
             }
         });
     }
 
     private void proxy(ICommandSender sender, String[] args) {
         if (args.length < 2) {
-            reply(sender, "§cUsage: /sa proxy <list|add|default|off>");
+            reply(sender, "\u00a7cUsage: /sa proxy <list|add|default|off>");
             return;
         }
         String action = args[1].toLowerCase();
         if (action.equals("list")) {
             List<ProxyEntry> entries = SilentAuth.proxies().all();
             if (entries.isEmpty()) {
-                reply(sender, "§7No proxies stored yet");
+                reply(sender, "\u00a77No proxies stored yet");
                 return;
             }
             for (ProxyEntry entry : entries) {
-                reply(sender, "§8- §f" + entry.describe() + " §7" + entry.statusText()
-                        + (SilentAuth.proxies().isDefault(entry) ? " §a(default)" : ""));
+                reply(sender, "\u00a78- \u00a7f" + entry.describe() + " \u00a77" + entry.statusText()
+                        + (SilentAuth.proxies().isDefault(entry) ? " \u00a7a(default)" : ""));
             }
         } else if (action.equals("add")) {
             if (args.length < 3) {
-                reply(sender, "§cUsage: /sa proxy add <host:port|scheme://user:pass@host:port>");
+                reply(sender, "\u00a7cUsage: /sa proxy add <host:port|scheme://user:pass@host:port>");
                 return;
             }
             try {
                 ProxyEntry entry = ProxyParser.parse(args[2], SilentAuth.config().getDefaultProxyType());
                 SilentAuth.proxies().add(entry);
                 SilentAuth.tester().testAsync(entry, null);
-                reply(sender, "§aAdded " + entry.describe());
+                reply(sender, "\u00a7aAdded " + entry.describe());
             } catch (IllegalArgumentException e) {
-                reply(sender, "§c" + e.getMessage());
+                reply(sender, "\u00a7c" + e.getMessage());
             }
         } else if (action.equals("default")) {
             if (args.length < 3) {
-                reply(sender, "§cUsage: /sa proxy default <host:port>");
+                reply(sender, "\u00a7cUsage: /sa proxy default <host:port>");
                 return;
             }
             ProxyEntry match = findByHost(args[2]);
             if (match == null) {
-                reply(sender, "§cNo stored proxy matches " + args[2]);
+                reply(sender, "\u00a7cNo stored proxy matches " + args[2]);
                 return;
             }
             SilentAuth.proxies().setDefault(match);
             LoginService.applyCurrentProxy();
-            reply(sender, "§aDefault proxy is now " + match.describe());
+            reply(sender, "\u00a7aDefault proxy is now " + match.describe());
         } else if (action.equals("off")) {
             SilentAuth.proxies().setDefault(null);
             LoginService.applyCurrentProxy();
-            reply(sender, "§7Proxy disabled");
+            reply(sender, "\u00a77Proxy disabled");
         } else {
-            reply(sender, "§cUsage: /sa proxy <list|add|default|off>");
+            reply(sender, "\u00a7cUsage: /sa proxy <list|add|default|off>");
         }
     }
 

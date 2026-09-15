@@ -87,43 +87,6 @@ public final class ProxyManager {
         return entry != null && entry.getId().equals(defaultProxyId);
     }
 
-    public int importLines(List<String> lines, ProxyType fallbackType) {
-        int added = 0;
-        for (String line : lines) {
-            if (line == null) {
-                continue;
-            }
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                continue;
-            }
-            try {
-                ProxyEntry entry = ProxyParser.parse(trimmed, fallbackType);
-                if (!contains(entry)) {
-                    proxies.add(entry);
-                    added++;
-                }
-            } catch (IllegalArgumentException e) {
-                Log.warn("Skipping proxy line '" + trimmed + "': " + e.getMessage());
-            }
-        }
-        if (added > 0) {
-            save();
-        }
-        return added;
-    }
-
-    private boolean contains(ProxyEntry candidate) {
-        for (ProxyEntry entry : proxies) {
-            if (entry.getHost().equalsIgnoreCase(candidate.getHost())
-                    && entry.getPort() == candidate.getPort()
-                    && entry.getType() == candidate.getType()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void load() {
         proxies.clear();
         if (!file.isFile()) {
