@@ -83,7 +83,8 @@ public final class GuiAccountManager extends GuiScreen {
         buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Check token"));
         buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Import file"));
         buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Proxies"));
-        buttonList.add(new GuiButton(7, left, rowThree, 308, 20, "Done"));
+        buttonList.add(new GuiButton(7, left, rowThree, 152, 20, "Set proxy"));
+        buttonList.add(new GuiButton(8, left + 156, rowThree, 152, 20, "Done"));
 
         refreshList();
     }
@@ -122,6 +123,9 @@ public final class GuiAccountManager extends GuiScreen {
                 mc.displayGuiScreen(new GuiProxyManager(this));
                 break;
             case 7:
+                cycleProxy();
+                break;
+            case 8:
                 mc.displayGuiScreen(parent);
                 break;
             default:
@@ -161,6 +165,40 @@ public final class GuiAccountManager extends GuiScreen {
                 status = (success ? "§a" : "§c") + message;
             }
         });
+    }
+
+    private void cycleProxy() {
+        Account account = selected();
+        if (account == null) {
+            status = "§cPick an account first";
+            return;
+        }
+        List<ProxyEntry> available = SilentAuth.proxies().all();
+        if (available.isEmpty()) {
+            status = "§cNo proxies stored yet";
+            return;
+        }
+
+        int index = -1;
+        for (int i = 0; i < available.size(); i++) {
+            if (available.get(i).getId().equals(account.getProxyId())) {
+                index = i;
+                break;
+            }
+        }
+        index++;
+
+        if (index >= available.size()) {
+            account.setProxyId("");
+            ProxyEntry fallback = SilentAuth.proxies().getDefault();
+            status = "§7" + account.getUsername() + " follows the default ("
+                    + (fallback == null ? "none" : fallback.describe()) + ")";
+        } else {
+            ProxyEntry chosen = available.get(index);
+            account.setProxyId(chosen.getId());
+            status = "§a" + account.getUsername() + " uses " + chosen.describe();
+        }
+        SilentAuth.accounts().save();
     }
 
     private void importFile() {

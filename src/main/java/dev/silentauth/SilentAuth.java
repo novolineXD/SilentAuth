@@ -9,6 +9,7 @@ import dev.silentauth.util.Crypto;
 import dev.silentauth.util.Log;
 import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -77,7 +78,9 @@ public final class SilentAuth {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        MinecraftForge.EVENT_BUS.register(new MainMenuHandler());
+        MainMenuHandler handler = new MainMenuHandler();
+        MinecraftForge.EVENT_BUS.register(handler);
+        FMLCommonHandler.instance().bus().register(handler);
         ClientCommandHandler.instance.registerCommand(new CommandSilentAuth());
         Log.info(MOD_NAME + " ready with " + accounts.size() + " accounts and " + proxies.size() + " proxies");
     }

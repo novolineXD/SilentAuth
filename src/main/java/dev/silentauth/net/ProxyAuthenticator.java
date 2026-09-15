@@ -7,7 +7,7 @@ import java.net.PasswordAuthentication;
 
 public final class ProxyAuthenticator extends Authenticator {
 
-    private static final ThreadLocal<PasswordAuthentication> CURRENT = new ThreadLocal<PasswordAuthentication>();
+    private static final ThreadLocal<ProxyEntry> CURRENT = new ThreadLocal<ProxyEntry>();
     private static boolean installed;
 
     public static synchronized void install() {
@@ -24,18 +24,27 @@ public final class ProxyAuthenticator extends Authenticator {
             return;
         }
         install();
-        CURRENT.set(new PasswordAuthentication(proxy.getUsername(), proxy.getPassword().toCharArray()));
+        CURRENT.set(proxy);
     }
 
     public static void unbind() {
         CURRENT.remove();
     }
 
-    @Override
-    protected PasswordAuthentication getPasswordAuthentication() {
-        if (getRequestorType() != RequestorType.PROXY) {
+    public static PasswordAuthentication credentialsFor(String host, int port, boolean proxyRequest) {
+        ProxyEntry proxy = CURRENT.get();
+        if (proxy == null) {
             return null;
         }
-        return CURRENT.get();
+        boolean sameEndpoint = port == proxy.getPort() && host != null && host.equalsIgnoreCase(proxy.getHost());
+        if (!proxyRequest && !sameEndpoint) {
+            return null;
+        }
+        return new PasswordAuthentication(proxy.getUsername(), proxy.getPassword().toCharArray());
+    }
+
+    @Override
+    protected PasswordAuthentication getPasswordAuthentication() {
+        return credentialsFor(getRequestingHost(), getRequestingPort(), getRequestorType() == RequestorType.PROXY);
     }
 }

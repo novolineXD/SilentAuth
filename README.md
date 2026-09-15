@@ -82,6 +82,10 @@ Without a scheme the type from the config (`defaultType`, SOCKS5 out of the box)
 `Import file` on the proxy screen reads `config/silentauth/proxies.txt` the same way, and
 `Test` opens a real connection through the proxy to measure it.
 
+`Set proxy` on the account screen steps the selected account through the stored proxies and
+then back to the default, so an account can be pointed at its own proxy before it is ever
+used.
+
 ### Where things are stored
 
 ```
