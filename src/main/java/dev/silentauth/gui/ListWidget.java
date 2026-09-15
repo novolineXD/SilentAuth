@@ -10,8 +10,8 @@ import org.lwjgl.input.Mouse;
  */
 abstract class ListWidget extends Gui {
 
-    /** Width of the remove target at the right edge of each row. */
-    static final int REMOVE_WIDTH = 22;
+    /** Width of the remove target at the right edge of each row. Generous, so it is easy to hit. */
+    static final int REMOVE_WIDTH = 32;
 
     protected final Minecraft mc = Minecraft.getMinecraft();
 
@@ -95,13 +95,12 @@ abstract class ListWidget extends Gui {
     private void drawRemove(int left, int rowY, boolean rowHovered, boolean overRemove) {
         int centreX = left + REMOVE_WIDTH / 2;
         int centreY = rowY + rowHeight / 2;
-        if (rowHovered || overRemove) {
-            Draw.rounded(centreX - 9, centreY - 9, centreX + 9, centreY + 9, 6.0F,
-                    overRemove ? 0x33F38BA8 : Theme.ROW_HOVER);
-        }
-        int colour = overRemove ? Theme.DANGER : rowHovered ? Theme.TEXT : Theme.TEXT_DIM;
-        Draw.line(centreX - 3.5F, centreY - 3.5F, centreX + 3.5F, centreY + 3.5F, 1.4F, colour);
-        Draw.line(centreX - 3.5F, centreY + 3.5F, centreX + 3.5F, centreY - 3.5F, 1.4F, colour);
+        // A standing pill so the delete target always looks like a button, not a stray mark.
+        Draw.rounded(centreX - 10, centreY - 9, centreX + 10, centreY + 9, 6.0F,
+                overRemove ? 0x55F38BA8 : rowHovered ? 0x22F38BA8 : 0x14FFFFFF);
+        int colour = overRemove ? Theme.TEXT : Theme.DANGER;
+        Draw.line(centreX - 4.0F, centreY - 4.0F, centreX + 4.0F, centreY + 4.0F, 1.6F, colour);
+        Draw.line(centreX - 4.0F, centreY + 4.0F, centreX + 4.0F, centreY - 4.0F, 1.6F, colour);
     }
 
     private void drawScrollbar() {

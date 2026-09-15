@@ -237,7 +237,7 @@ public final class GuiProxyManager extends SilentAuthScreen {
                 FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
         list.draw(mouseX, mouseY);
 
-        fontRendererObj.drawString("host:port   user:pass@host:port   socks5://   http://",
+        fontRendererObj.drawString("host:port    host:port:user:pass    user:pass@host:port",
                 left + 20, listTop + listHeight + 6, Theme.TEXT_FAINT);
         drawStatusOr(listTop + listHeight + 20, "Click a proxy to use it    the x on a row removes it");
         super.drawScreen(mouseX, mouseY, partialTicks);
