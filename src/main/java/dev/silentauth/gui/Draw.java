@@ -118,6 +118,11 @@ final class Draw {
         end();
     }
 
+    /** A soft filled circle, for status dots. */
+    static void dot(float cx, float cy, float radius, int colour) {
+        rounded(cx - radius, cy - radius, cx + radius, cy + radius, radius, colour);
+    }
+
     /** A rounded well: a soft edge in one colour with a fill sitting inside it. */
     static void well(float left, float top, float right, float bottom, float radius, int fill, int border) {
         rounded(left, top, right, bottom, radius, border);

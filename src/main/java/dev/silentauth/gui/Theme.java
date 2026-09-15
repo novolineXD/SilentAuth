@@ -36,8 +36,10 @@ final class Theme {
 
     /** In use. */
     static final int OK = 0xFFA6E3A1;
-    /** Invalid. */
+    /** Invalid or dead. */
     static final int DANGER = 0xFFF38BA8;
+    /** Neither - idle, untested, not selected. */
+    static final int IDLE = 0xFF6C6685;
 
     // --- controls -------------------------------------------------------
 

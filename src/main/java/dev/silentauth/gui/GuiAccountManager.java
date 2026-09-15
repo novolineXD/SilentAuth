@@ -325,7 +325,9 @@ public final class GuiAccountManager extends SilentAuthScreen {
         @Override
         void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered) {
             if (isOwnRow(index)) {
-                drawOwnRow(rowX, rowY, rowWidth);
+                boolean inUse = SilentAuth.accounts().getActive() == null;
+                paintRow(rowX, rowY, rowWidth, inUse ? Theme.OK : Theme.IDLE,
+                        "Your account", SessionSwapper.originalUsername());
                 return;
             }
             Account account = accountAt(index);
@@ -335,36 +337,16 @@ public final class GuiAccountManager extends SilentAuthScreen {
 
             boolean inUse = SilentAuth.accounts().isActive(account);
             boolean invalid = account.getValidity() == Validity.INVALID;
-            fontRendererObj.drawString(account.getUsername(), rowX, rowY,
-                    inUse ? Theme.OK : invalid ? Theme.DANGER : Theme.TEXT_DIM);
-
-            String state = inUse ? "in use" : invalid ? "invalid" : account.getValidity().getLabel();
-            if (!state.isEmpty()) {
-                fontRendererObj.drawString(state, rowX + rowWidth - fontRendererObj.getStringWidth(state), rowY,
-                        inUse ? Theme.OK : invalid ? Theme.DANGER : Theme.TEXT_FAINT);
-            }
+            int status = inUse ? Theme.OK : invalid ? Theme.DANGER : Theme.IDLE;
 
             String detail;
             if (invalid && !account.getDetail().isEmpty()) {
                 detail = account.getDetail();
             } else {
                 ProxyEntry proxy = LoginService.resolveProxy(account);
-                detail = account.getType().getLabel() + (proxy == null ? "" : "  " + proxy.describe());
+                detail = account.getType().getLabel() + (proxy == null ? "" : "   " + proxy.describe());
             }
-            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(detail, rowWidth - 8),
-                    rowX, rowY + 10, Theme.TEXT_FAINT);
-        }
-
-        private void drawOwnRow(int rowX, int rowY, int rowWidth) {
-            boolean inUse = SilentAuth.accounts().getActive() == null;
-            fontRendererObj.drawString("Your account", rowX, rowY, inUse ? Theme.OK : Theme.TEXT_DIM);
-            if (inUse) {
-                fontRendererObj.drawString("in use",
-                        rowX + rowWidth - fontRendererObj.getStringWidth("in use"), rowY, Theme.OK);
-            }
-            fontRendererObj.drawString(
-                    fontRendererObj.trimStringToWidth(SessionSwapper.originalUsername(), rowWidth - 8),
-                    rowX, rowY + 10, Theme.TEXT_FAINT);
+            paintRow(rowX, rowY, rowWidth, status, account.getUsername(), detail);
         }
 
         @Override

@@ -294,25 +294,16 @@ public final class GuiProxyManager extends SilentAuthScreen {
             ProxyEntry entry = shown.get(index);
             boolean inUse = SilentAuth.proxies().isDefault(entry);
             boolean dead = entry.getLatencyMs() == ProxyEntry.UNREACHABLE;
-
-            fontRendererObj.drawString(entry.displayName(), rowX, rowY,
-                    inUse ? Theme.OK : dead ? Theme.DANGER : Theme.TEXT_DIM);
-
-            String state = inUse ? "in use" : dead ? "dead" : entry.statusText();
-            if (!state.isEmpty()) {
-                fontRendererObj.drawString(state, rowX + rowWidth - fontRendererObj.getStringWidth(state), rowY,
-                        inUse ? Theme.OK : dead ? Theme.DANGER : Theme.TEXT_FAINT);
-            }
+            int status = inUse ? Theme.OK : dead ? Theme.DANGER : Theme.IDLE;
 
             StringBuilder detail = new StringBuilder(entry.getType().getLabel());
             if (entry.hasCredentials()) {
-                detail.append("  with password");
+                detail.append("   auth");
             }
-            if (inUse && entry.isReachable()) {
-                detail.append("  ").append(entry.getLatencyMs()).append(" ms");
+            if (entry.isReachable()) {
+                detail.append("   ").append(entry.getLatencyMs()).append(" ms");
             }
-            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(detail.toString(), rowWidth - 8),
-                    rowX, rowY + 10, Theme.TEXT_FAINT);
+            paintRow(rowX, rowY, rowWidth, status, entry.displayName(), detail.toString());
         }
 
         @Override

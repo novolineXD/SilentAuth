@@ -36,6 +36,22 @@ abstract class ListWidget extends Gui {
 
     abstract void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered);
 
+    /**
+     * The standard two-line row: a coloured status dot, a title, and a faint subtitle. Status
+     * is carried entirely by the dot's colour, so rows never need a word like "ok" or "in use".
+     */
+    protected final void paintRow(int rowX, int rowY, int rowWidth, int statusColour,
+                                  String title, String subtitle) {
+        Draw.dot(rowX + 4, rowY + 8, 3.5F, statusColour);
+        int textX = rowX + 16;
+        int textW = rowWidth - 16;
+        mc.fontRendererObj.drawString(mc.fontRendererObj.trimStringToWidth(title, textW), textX, rowY, Theme.TEXT);
+        if (subtitle != null && !subtitle.isEmpty()) {
+            mc.fontRendererObj.drawString(mc.fontRendererObj.trimStringToWidth(subtitle, textW),
+                    textX, rowY + 10, Theme.TEXT_FAINT);
+        }
+    }
+
     /** The row was clicked. */
     abstract void onActivated(int index);
 
@@ -95,12 +111,13 @@ abstract class ListWidget extends Gui {
     private void drawRemove(int left, int rowY, boolean rowHovered, boolean overRemove) {
         int centreX = left + REMOVE_WIDTH / 2;
         int centreY = rowY + rowHeight / 2;
-        // A standing pill so the delete target always looks like a button, not a stray mark.
-        Draw.rounded(centreX - 10, centreY - 9, centreX + 10, centreY + 9, 6.0F,
-                overRemove ? 0x55F38BA8 : rowHovered ? 0x22F38BA8 : 0x14FFFFFF);
-        int colour = overRemove ? Theme.TEXT : Theme.DANGER;
-        Draw.line(centreX - 4.0F, centreY - 4.0F, centreX + 4.0F, centreY + 4.0F, 1.6F, colour);
-        Draw.line(centreX - 4.0F, centreY + 4.0F, centreX + 4.0F, centreY - 4.0F, 1.6F, colour);
+        // A rounded red button with a glyph. Font glyphs and rounded fills both render reliably,
+        // so the delete control is always plainly visible whether or not it is hovered.
+        int fill = overRemove ? 0xE6F0607A : rowHovered ? 0x40F38BA8 : 0x24F38BA8;
+        Draw.rounded(centreX - 9, centreY - 8, centreX + 9, centreY + 8, 5.0F, fill);
+        int ink = overRemove ? 0xFFFFFFFF : Theme.DANGER;
+        String x = "x";
+        mc.fontRendererObj.drawString(x, centreX - mc.fontRendererObj.getStringWidth(x) / 2, centreY - 4, ink);
     }
 
     private void drawScrollbar() {
