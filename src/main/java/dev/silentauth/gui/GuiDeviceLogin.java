@@ -2,6 +2,7 @@ package dev.silentauth.gui;
 
 import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
+import dev.silentauth.account.LoginService;
 import dev.silentauth.auth.AuthException;
 import dev.silentauth.auth.DeviceCode;
 import dev.silentauth.auth.MicrosoftAuth;
@@ -11,39 +12,58 @@ import dev.silentauth.util.Log;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.Sys;
-import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class GuiDeviceLogin extends GuiScreen {
+/** Shows the code to type at microsoft.com/link, then plays as that account. */
+public final class GuiDeviceLogin extends SilentAuthScreen {
 
-    private final GuiScreen parent;
+    private static final int COPY = 1;
+    private static final int OPEN = 2;
+    private static final int CLOSE = 3;
+    private static final int PANEL_WIDTH = 330;
+
     private final ProxyEntry proxy;
     private final AtomicBoolean cancelled = new AtomicBoolean();
 
     private volatile DeviceCode code;
-    private volatile String status = "Asking Microsoft for a code";
     private volatile boolean finished;
     private boolean started;
+    private GuiButton closeButton;
 
     public GuiDeviceLogin(GuiScreen parent, ProxyEntry proxy) {
-        this.parent = parent;
+        super(parent);
         this.proxy = proxy;
     }
 
     @Override
     public void initGui() {
         buttonList.clear();
-        int left = width / 2 - 100;
-        buttonList.add(new GuiButton(1, left, height - 90, 200, 20, "Copy code"));
-        buttonList.add(new GuiButton(2, left, height - 66, 200, 20, "Open microsoft.com/link"));
-        buttonList.add(new GuiButton(3, left, height - 42, 200, 20, "Cancel"));
+        int left = panelLeft();
+        int top = panelTop();
 
+        buttonList.add(new GlassButton(OPEN, left + 20, top + 98, PANEL_WIDTH - 40, 22,
+                "Open microsoft.com/link").asPrimary());
+        buttonList.add(new GlassButton(COPY, left + 20, top + 126, PANEL_WIDTH - 40, 22, "Copy the code"));
+        closeButton = new GlassButton(CLOSE, left + 20, top + 154, PANEL_WIDTH - 40, 22,
+                finished ? "Done" : "Cancel");
+        buttonList.add(closeButton);
+
+        // initGui runs again on every resize; the sign in must only start once.
         if (!started) {
             started = true;
+            info("Asking Microsoft for a code");
             begin();
         }
+    }
+
+    private int panelLeft() {
+        return width / 2 - PANEL_WIDTH / 2;
+    }
+
+    private int panelTop() {
+        return Math.max(16, height / 2 - 100);
     }
 
     private void begin() {
@@ -53,46 +73,67 @@ public final class GuiDeviceLogin extends GuiScreen {
                 try {
                     DeviceCode requested = MicrosoftAuth.requestDeviceCode(proxy);
                     code = requested;
-                    status = "Type the code at " + requested.getVerificationUri();
+                    info("Type the code at " + requested.getVerificationUri());
                     Account account = MicrosoftAuth.completeDeviceLogin(requested, proxy, cancelled,
                             new MicrosoftAuth.StatusListener() {
                                 @Override
-                                public void onStatus(String message) {
-                                    if (!message.startsWith("Waiting")) {
-                                        status = message;
+                                public void onStatus(String text) {
+                                    // The polling tick is noise; the real steps are worth showing.
+                                    if (!text.startsWith("Waiting")) {
+                                        info(text);
                                     }
                                 }
                             });
-                    if (proxy != null) {
-                        account.setProxyId(proxy.getId());
-                    }
                     SilentAuth.accounts().add(account);
                     finished = true;
-                    status = "\u00a7aAdded " + account.getUsername();
+                    playAs(account);
                 } catch (AuthException e) {
-                    finished = true;
-                    status = "\u00a7c" + e.getMessage();
                     Log.warn("Microsoft sign in failed: " + e.getMessage());
+                    finished = true;
+                    error(e.getMessage());
+                    markDone();
                 }
             }
         });
     }
 
+    private void playAs(Account account) {
+        LoginService.loginAsync(account, new LoginService.Callback() {
+            @Override
+            public void onResult(boolean success, String text) {
+                result(success, text);
+                if (success) {
+                    back();
+                } else {
+                    markDone();
+                }
+            }
+        });
+    }
+
+    private void markDone() {
+        if (closeButton != null) {
+            closeButton.displayString = "Done";
+        }
+    }
+
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         switch (button.id) {
-            case 1:
-                if (code != null) {
-                    setClipboardString(code.getUserCode());
-                    status = "\u00a7aCode copied";
+            case COPY:
+                DeviceCode current = code;
+                if (current == null) {
+                    error("There is no code yet");
+                    break;
                 }
+                setClipboardString(current.getUserCode());
+                ok("Code copied");
                 break;
-            case 2:
+            case OPEN:
                 openLink();
                 break;
-            case 3:
-                cancelled.set(true);
-                mc.displayGuiScreen(parent);
+            case CLOSE:
+                back();
                 break;
             default:
                 break;
@@ -104,45 +145,45 @@ public final class GuiDeviceLogin extends GuiScreen {
         try {
             Sys.openURL(uri);
         } catch (Throwable t) {
-            status = "\u00a7cCould not open a browser, go to " + uri;
-        }
-    }
-
-    @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (keyCode == Keyboard.KEY_ESCAPE) {
-            cancelled.set(true);
-            mc.displayGuiScreen(parent);
+            error("Could not open a browser, go to " + uri);
         }
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
-        drawCenteredString(fontRendererObj, "Microsoft sign in", width / 2, 24, 0xFFFFFF);
+        drawBackdrop();
+
+        int left = panelLeft();
+        int top = panelTop();
+        int bottom = top + 190;
+
+        drawPanel(left, top, left + PANEL_WIDTH, bottom);
+        drawTitle("Microsoft sign in", top + 14);
 
         DeviceCode current = code;
-        if (current != null) {
-            drawCenteredString(fontRendererObj, "\u00a7f" + current.getUserCode(), width / 2, 60, 0xFFFFFF);
+        Draw.well(left + 20, top + 38, left + PANEL_WIDTH - 20, top + 68,
+                FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
+        if (current == null) {
+            drawCenteredString(fontRendererObj, "...", width / 2, top + 49, Theme.TEXT_FAINT);
+        } else {
+            drawCenteredString(fontRendererObj, current.getUserCode(), width / 2, top + 49, Theme.MAUVE);
             if (!finished) {
-                drawCenteredString(fontRendererObj, "\u00a78expires in " + current.getSecondsLeft() + "s", width / 2,
-                        76, 0x888888);
+                drawCenteredString(fontRendererObj, "expires in " + current.getSecondsLeft() + "s",
+                        width / 2, top + 76, Theme.TEXT_FAINT);
             }
         }
-        drawCenteredString(fontRendererObj, status, width / 2, 100, 0xFFFFFF);
+
+        drawStatus(bottom + 8);
         if (proxy != null) {
-            drawCenteredString(fontRendererObj, "\u00a78through " + proxy.describe(), width / 2, 116, 0x888888);
+            drawCenteredString(fontRendererObj, "through " + proxy.describe(), width / 2, bottom + 20,
+                    Theme.TEXT_FAINT);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     @Override
     public void onGuiClosed() {
+        super.onGuiClosed();
         cancelled.set(true);
-    }
-
-    @Override
-    public boolean doesGuiPauseGame() {
-        return false;
     }
 }

@@ -10,8 +10,7 @@ import java.io.IOException;
 
 public final class MinecraftServices {
 
-    public static final String PROFILE_URL = "https://api.minecraftservices.com/minecraft/profile";
-    public static final String ENTITLEMENTS_URL = "https://api.minecraftservices.com/entitlements/mcstore";
+    private static final String PROFILE_URL = "https://api.minecraftservices.com/minecraft/profile";
 
     private MinecraftServices() {
     }

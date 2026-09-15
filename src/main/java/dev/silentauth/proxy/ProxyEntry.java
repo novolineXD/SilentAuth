@@ -7,17 +7,20 @@ import java.util.UUID;
 public final class ProxyEntry {
 
     public static final int UNTESTED = -1;
+    public static final int TESTING = -3;
     public static final int UNREACHABLE = -2;
 
     private final String id;
     private ProxyType type;
-    private String host;
-    private int port;
+    private final String host;
+    private final int port;
     private String username;
     private String password;
     private String label;
     private volatile int latencyMs = UNTESTED;
     private volatile String lastError = "";
+    private volatile long testedAt;
+    private volatile Proxy cached;
 
     public ProxyEntry(ProxyType type, String host, int port, String username, String password) {
         this(UUID.randomUUID().toString(), type, host, port, username, password, "");
@@ -43,22 +46,15 @@ public final class ProxyEntry {
 
     public void setType(ProxyType type) {
         this.type = type;
+        this.cached = null;
     }
 
     public String getHost() {
         return host;
     }
 
-    public void setHost(String host) {
-        this.host = host;
-    }
-
     public int getPort() {
         return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
     }
 
     public String getUsername() {
@@ -91,10 +87,22 @@ public final class ProxyEntry {
 
     public void setLatencyMs(int latencyMs) {
         this.latencyMs = latencyMs;
+        if (latencyMs >= 0 || latencyMs == UNREACHABLE) {
+            this.testedAt = System.currentTimeMillis();
+        }
     }
 
-    public String getLastError() {
-        return lastError;
+    public boolean isReachable() {
+        return latencyMs >= 0;
+    }
+
+    public boolean isBeingTested() {
+        return latencyMs == TESTING;
+    }
+
+    /** True when it was tested recently enough not to be worth testing again. */
+    public boolean wasTestedWithin(long millis) {
+        return testedAt > 0L && System.currentTimeMillis() - testedAt < millis;
     }
 
     public void setLastError(String lastError) {
@@ -105,13 +113,18 @@ public final class ProxyEntry {
         return !username.isEmpty();
     }
 
-    public InetSocketAddress getAddress() {
-        return InetSocketAddress.createUnresolved(host, port);
-    }
-
+    /**
+     * The JDK proxy for this entry, resolved once and kept. Building it hits DNS, and this is
+     * read from the render thread every time the account list draws a row.
+     */
     public Proxy toJavaProxy() {
-        Proxy.Type javaType = type == ProxyType.HTTP ? Proxy.Type.HTTP : Proxy.Type.SOCKS;
-        return new Proxy(javaType, new InetSocketAddress(host, port));
+        Proxy local = cached;
+        if (local == null) {
+            Proxy.Type javaType = type == ProxyType.HTTP ? Proxy.Type.HTTP : Proxy.Type.SOCKS;
+            local = new Proxy(javaType, new InetSocketAddress(host, port));
+            cached = local;
+        }
+        return local;
     }
 
     public String describe() {
@@ -126,23 +139,16 @@ public final class ProxyEntry {
     }
 
     public String statusText() {
+        if (latencyMs == TESTING) {
+            return "checking";
+        }
         if (latencyMs == UNTESTED) {
-            return "untested";
+            return "";
         }
         if (latencyMs == UNREACHABLE) {
             return lastError.isEmpty() ? "unreachable" : lastError;
         }
         return latencyMs + " ms";
-    }
-
-    public String toStorageString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(type.getLabel().toLowerCase()).append("://");
-        if (hasCredentials()) {
-            sb.append(username).append(':').append(password).append('@');
-        }
-        sb.append(host).append(':').append(port);
-        return sb.toString();
     }
 
     @Override

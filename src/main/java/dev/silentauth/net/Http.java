@@ -1,7 +1,7 @@
 package dev.silentauth.net;
 
+import dev.silentauth.SilentAuth;
 import dev.silentauth.proxy.ProxyEntry;
-import dev.silentauth.proxy.ProxyType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,7 +10,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,7 +18,7 @@ public final class Http {
 
     private static final int CONNECT_TIMEOUT = 15000;
     private static final int READ_TIMEOUT = 20000;
-    private static final String USER_AGENT = "SilentAuth/1.0";
+    private static final String USER_AGENT = "SilentAuth/" + SilentAuth.VERSION;
 
     private Http() {
     }
@@ -47,6 +46,8 @@ public final class Http {
 
     private static HttpResponse execute(String method, String url, ProxyEntry proxy, Map<String, String> headers,
                                         byte[] body, String contentType) throws IOException {
+        // Credentials go through the Authenticator rather than a Proxy-Authorization header:
+        // on an HTTPS request that header would travel inside the tunnel to the destination.
         ProxyAuthenticator.bind(proxy);
         HttpURLConnection connection = null;
         try {
@@ -61,11 +62,6 @@ public final class Http {
             connection.setRequestProperty("User-Agent", USER_AGENT);
             connection.setRequestProperty("Accept", "application/json");
 
-            if (proxy != null && proxy.getType() == ProxyType.HTTP && proxy.hasCredentials()) {
-                String raw = proxy.getUsername() + ":" + proxy.getPassword();
-                connection.setRequestProperty("Proxy-Authorization",
-                        "Basic " + Base64.getEncoder().encodeToString(raw.getBytes("UTF-8")));
-            }
             if (headers != null) {
                 for (Map.Entry<String, String> header : headers.entrySet()) {
                     connection.setRequestProperty(header.getKey(), header.getValue());

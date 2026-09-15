@@ -8,36 +8,54 @@ public final class Reflect {
     private Reflect() {
     }
 
-    public static Field findField(Class<?> owner, String... names) {
+    /**
+     * Finds a field by name, then - if none of the names matched - by type.
+     *
+     * <p>The names cover the mapped and the obfuscated build. The type search is the safety
+     * net: every field this mod touches is the only one of its type on its owner, so looking
+     * it up by type keeps working even if a name is wrong or the mappings move.</p>
+     */
+    public static Field find(Class<?> owner, Class<?> type, String... names) {
         for (String name : names) {
             try {
                 Field field = owner.getDeclaredField(name);
-                field.setAccessible(true);
-                return field;
+                if (type.isAssignableFrom(field.getType())) {
+                    field.setAccessible(true);
+                    return field;
+                }
             } catch (NoSuchFieldException ignored) {
-                continue;
+                // Try the next name, then fall through to the type search.
             }
         }
-        throw new IllegalStateException("None of " + join(names) + " exist on " + owner.getName());
+
+        Field match = null;
+        for (Field field : owner.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()) || !type.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            if (match != null) {
+                throw new IllegalStateException(owner.getName() + " has more than one " + type.getSimpleName()
+                        + " field, cannot pick between " + match.getName() + " and " + field.getName());
+            }
+            match = field;
+        }
+        if (match == null) {
+            throw new IllegalStateException("No " + type.getSimpleName() + " field named " + join(names)
+                    + " on " + owner.getName());
+        }
+        match.setAccessible(true);
+        Log.warn("Found " + owner.getSimpleName() + "." + match.getName() + " by type rather than by name ("
+                + join(names) + "), the mappings may have moved");
+        return match;
     }
 
-    public static void set(Object instance, Class<?> owner, Object value, String... names) {
-        Field field = findField(owner, names);
+    public static void set(Object instance, Class<?> owner, Class<?> type, Object value, String... names) {
+        Field field = find(owner, type, names);
         try {
             stripFinal(field);
             field.set(instance, value);
         } catch (Exception e) {
             throw new IllegalStateException("Could not write " + join(names) + " on " + owner.getName(), e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T get(Object instance, Class<?> owner, String... names) {
-        Field field = findField(owner, names);
-        try {
-            return (T) field.get(instance);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Could not read " + join(names) + " on " + owner.getName(), e);
         }
     }
 
@@ -50,7 +68,7 @@ public final class Reflect {
             modifiers.setAccessible(true);
             modifiers.setInt(field, field.getModifiers() & ~Modifier.FINAL);
         } catch (Exception ignored) {
-            return;
+            // Field.set copes with a final instance field on Java 8 anyway once it is accessible.
         }
     }
 

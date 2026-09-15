@@ -4,7 +4,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import org.lwjgl.input.Mouse;
 
-public abstract class ListWidget extends Gui {
+/**
+ * A scrollable list of rows. A click anywhere on a row runs the row's action; a click on the
+ * remove target at its right edge removes it instead.
+ */
+abstract class ListWidget extends Gui {
+
+    /** Width of the remove target at the right edge of each row. */
+    static final int REMOVE_WIDTH = 22;
 
     protected final Minecraft mc = Minecraft.getMinecraft();
 
@@ -17,7 +24,7 @@ public abstract class ListWidget extends Gui {
     private int scroll;
     private int selected = -1;
 
-    public ListWidget(int x, int y, int width, int height, int rowHeight) {
+    ListWidget(int x, int y, int width, int height, int rowHeight) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -25,13 +32,30 @@ public abstract class ListWidget extends Gui {
         this.rowHeight = rowHeight;
     }
 
-    public abstract int getSize();
+    abstract int getSize();
 
-    public abstract void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered, boolean isSelected);
+    abstract void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered);
 
-    public void draw(int mouseX, int mouseY) {
-        drawRect(x, y, x + width, y + height, 0x77000000);
+    /** The row was clicked. */
+    abstract void onActivated(int index);
+
+    /** The row's remove target was clicked. Return false if the row cannot be removed. */
+    boolean onRemove(int index) {
+        return false;
+    }
+
+    /** Whether this row shows a remove target at all. */
+    boolean isRemovable(int index) {
+        return true;
+    }
+
+    String emptyText() {
+        return "Nothing here yet";
+    }
+
+    void draw(int mouseX, int mouseY) {
         clampScroll();
+        boolean inside = contains(mouseX, mouseY);
 
         int visible = visibleRows();
         for (int slot = 0; slot < visible; slot++) {
@@ -40,17 +64,39 @@ public abstract class ListWidget extends Gui {
                 break;
             }
             int rowY = y + slot * rowHeight;
-            boolean hovered = mouseX >= x && mouseX < x + width && mouseY >= rowY && mouseY < rowY + rowHeight;
-            boolean isSelected = index == selected;
-            if (isSelected) {
-                drawRect(x, rowY, x + width, rowY + rowHeight - 1, 0x803C6EFF);
+            boolean hovered = inside && mouseY >= rowY && mouseY < rowY + rowHeight;
+
+            if (index == selected) {
+                Draw.rounded(x + 3, rowY + 1, x + width - 3, rowY + rowHeight - 1, 7.0F, Theme.ROW_SELECTED);
             } else if (hovered) {
-                drawRect(x, rowY, x + width, rowY + rowHeight - 1, 0x33FFFFFF);
+                Draw.rounded(x + 3, rowY + 1, x + width - 3, rowY + rowHeight - 1, 7.0F, Theme.ROW_HOVER);
             }
-            drawRow(index, x + 5, rowY + 4, width - 10, hovered, isSelected);
+
+            int usable = width - (isRemovable(index) ? REMOVE_WIDTH : 0);
+            drawRow(index, x + 10, rowY + (rowHeight - 16) / 2, usable - 20, hovered);
+
+            if (isRemovable(index)) {
+                boolean overRemove = hovered && mouseX >= x + width - REMOVE_WIDTH;
+                drawRemove(x + width - REMOVE_WIDTH, rowY, overRemove);
+            }
         }
 
+        if (getSize() == 0) {
+            drawCenteredString(mc.fontRendererObj, emptyText(), x + width / 2, y + height / 2 - 4, Theme.TEXT_FAINT);
+        }
         drawScrollbar();
+    }
+
+    /** A small x, drawn rather than using a glyph so it lines up at any scale. */
+    private void drawRemove(int left, int rowY, boolean hovered) {
+        int centreX = left + REMOVE_WIDTH / 2;
+        int centreY = rowY + rowHeight / 2;
+        if (hovered) {
+            Draw.rounded(centreX - 9, centreY - 9, centreX + 9, centreY + 9, 6.0F, Theme.ROW_HOVER);
+        }
+        int colour = hovered ? Theme.DANGER : Theme.TEXT_FAINT;
+        Draw.line(centreX - 3.5F, centreY - 3.5F, centreX + 3.5F, centreY + 3.5F, 1.4F, colour);
+        Draw.line(centreX - 3.5F, centreY + 3.5F, centreX + 3.5F, centreY - 3.5F, 1.4F, colour);
     }
 
     private void drawScrollbar() {
@@ -59,68 +105,92 @@ public abstract class ListWidget extends Gui {
         if (size <= visible) {
             return;
         }
-        int trackX = x + width - 3;
-        drawRect(trackX, y, trackX + 3, y + height, 0x33FFFFFF);
-        int barHeight = Math.max(12, height * visible / size);
+        int trackX = x + width - 4;
+        int barHeight = Math.max(16, height * visible / size);
         int maxScroll = size - visible;
         int offset = maxScroll == 0 ? 0 : (height - barHeight) * scroll / maxScroll;
-        drawRect(trackX, y + offset, trackX + 3, y + offset + barHeight, 0xAAFFFFFF);
+        Draw.rounded(trackX, y + offset + 2, trackX + 3.0F, y + offset + barHeight - 2, 1.5F, Theme.GLASS_BORDER);
     }
 
-    public boolean mouseClicked(int mouseX, int mouseY, int button) {
-        if (button != 0 || mouseX < x || mouseX >= x + width || mouseY < y || mouseY >= y + height) {
+    boolean mouseClicked(int mouseX, int mouseY, int button) {
+        if (button != 0 || !contains(mouseX, mouseY)) {
             return false;
         }
         int slot = (mouseY - y) / rowHeight;
+        // The widget can be slightly taller than a whole number of rows; that strip is not a row.
+        if (slot < 0 || slot >= visibleRows()) {
+            return false;
+        }
         int index = scroll + slot;
         if (index < 0 || index >= getSize()) {
             return false;
         }
+
         selected = index;
-        onSelected(index);
+        if (isRemovable(index) && mouseX >= x + width - REMOVE_WIDTH) {
+            return onRemove(index);
+        }
+        onActivated(index);
         return true;
     }
 
-    public void handleScroll() {
-        int wheel = Mouse.getDWheel();
+    /**
+     * Handles one mouse event's worth of wheel movement. Called from handleMouseInput, which
+     * Minecraft runs once per mouse event, so this reads the per-event delta the way the
+     * vanilla lists do rather than the polled accumulator.
+     */
+    void handleScroll() {
+        int wheel = Mouse.getEventDWheel();
         if (wheel == 0) {
             return;
         }
-        scroll += wheel > 0 ? -1 : 1;
+        scroll += wheel > 0 ? -2 : 2;
         clampScroll();
     }
 
-    protected void onSelected(int index) {
-        return;
+    void moveSelection(int delta) {
+        int size = getSize();
+        if (size == 0) {
+            return;
+        }
+        int next = selected < 0 ? (delta > 0 ? 0 : size - 1) : selected + delta;
+        selected = Math.max(0, Math.min(size - 1, next));
+        ensureVisible(selected);
     }
 
-    public int visibleRows() {
+    void activateSelection() {
+        if (selected >= 0 && selected < getSize()) {
+            onActivated(selected);
+        }
+    }
+
+    private void ensureVisible(int index) {
+        if (index < scroll) {
+            scroll = index;
+        } else if (index >= scroll + visibleRows()) {
+            scroll = index - visibleRows() + 1;
+        }
+        clampScroll();
+    }
+
+    private boolean contains(int mouseX, int mouseY) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
+    int visibleRows() {
         return Math.max(1, height / rowHeight);
     }
 
     private void clampScroll() {
         int maxScroll = Math.max(0, getSize() - visibleRows());
-        if (scroll > maxScroll) {
-            scroll = maxScroll;
-        }
-        if (scroll < 0) {
-            scroll = 0;
-        }
+        scroll = Math.max(0, Math.min(maxScroll, scroll));
     }
 
-    public int getSelectedIndex() {
+    int getSelectedIndex() {
         return selected;
     }
 
-    public void setSelectedIndex(int index) {
-        this.selected = index;
-    }
-
-    public void clearSelection() {
+    void clearSelection() {
         this.selected = -1;
-    }
-
-    public int getRowHeight() {
-        return rowHeight;
     }
 }

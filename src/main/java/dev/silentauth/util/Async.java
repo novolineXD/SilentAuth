@@ -33,8 +33,4 @@ public final class Async {
             }
         });
     }
-
-    public static void shutdown() {
-        POOL.shutdownNow();
-    }
 }

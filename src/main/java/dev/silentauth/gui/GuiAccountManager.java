@@ -4,7 +4,12 @@ import dev.silentauth.SilentAuth;
 import dev.silentauth.account.Account;
 import dev.silentauth.account.LoginService;
 import dev.silentauth.account.SessionSwapper;
+import dev.silentauth.account.TokenParser;
+import dev.silentauth.account.Validity;
+import dev.silentauth.auth.AuthException;
+import dev.silentauth.auth.SessionTokenAuth;
 import dev.silentauth.proxy.ProxyEntry;
+import dev.silentauth.util.Async;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -14,224 +19,232 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class GuiAccountManager extends GuiScreen {
+/**
+ * The whole mod on one screen: paste a token at the top, click a name to play as it.
+ *
+ * <p>The first row is always the session the launcher started with, so there is always
+ * something to go back to and no separate restore button is needed. Tokens validate
+ * themselves when the screen opens.</p>
+ */
+public final class GuiAccountManager extends SilentAuthScreen {
 
-    private final GuiScreen parent;
+    private static final int ADD = 1;
+    private static final int MICROSOFT = 2;
+    private static final int PROXIES = 3;
+    private static final int CLOSE = 4;
 
-    private GuiTextField searchField;
+    private static final int PANEL_WIDTH = 330;
+    private static final int ROW_HEIGHT = 28;
+    private static final int MAX_ROWS = 6;
+    /** Title, field, status band, two button rows and the bottom padding. */
+    private static final int CHROME_HEIGHT = 76 + 16 + 50 + 14;
+
+    private GuiTextField tokenField;
     private ListWidget list;
     private List<Account> shown = new ArrayList<Account>();
-    private String lastQuery = "";
-    private volatile String status = "";
-    private volatile boolean busy;
 
     public GuiAccountManager(GuiScreen parent) {
-        this.parent = parent;
+        super(parent);
     }
 
     @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
         buttonList.clear();
+        shown = SilentAuth.accounts().all();
 
-        searchField = new GuiTextField(0, fontRendererObj, width / 2 - 150, 24, 300, 16);
-        searchField.setMaxStringLength(48);
-        searchField.setText(lastQuery);
+        int left = panelLeft();
+        int top = panelTop();
+        int fieldTop = top + 40;
+        int listTop = top + 76;
+        int listHeight = listHeight();
 
-        final int listTop = 48;
-        final int listHeight = Math.max(44, height - 156);
-        list = new ListWidget(width / 2 - 150, listTop, 300, listHeight, 22) {
+        String carried = tokenField == null ? "" : tokenField.getText();
+        tokenField = new GuiTextField(0, fontRendererObj, left + 20, fieldTop, PANEL_WIDTH - 110, 12);
+        tokenField.setMaxStringLength(4096);
+        tokenField.setEnableBackgroundDrawing(false);
+        tokenField.setTextColor(Theme.TEXT);
+        tokenField.setText(carried);
+        tokenField.setFocused(true);
+
+        buttonList.add(new GlassButton(ADD, left + PANEL_WIDTH - 82, fieldTop - 6, 62, 24, "Add").asPrimary());
+
+        list = new AccountList(left + 8, listTop, PANEL_WIDTH - 16, listHeight, ROW_HEIGHT);
+
+        int buttonsTop = listTop + listHeight + 16;
+        int half = (PANEL_WIDTH - 40 - 10) / 2;
+        buttonList.add(new GlassButton(MICROSOFT, left + 20, buttonsTop, half, 22, "Microsoft sign in"));
+        buttonList.add(new GlassButton(PROXIES, left + 30 + half, buttonsTop, half, 22, "Proxies"));
+        buttonList.add(new GlassButton(CLOSE, left + 20, buttonsTop + 28, PANEL_WIDTH - 40, 22, "Close"));
+
+        SilentAuth.checker().checkAll(shown);
+    }
+
+    /** Rebuilds the layout after the number of rows changed, keeping anything half typed. */
+    private void relayout() {
+        mc.addScheduledTask(new Runnable() {
             @Override
-            public int getSize() {
-                return shown.size();
+            public void run() {
+                initGui();
             }
-
-            @Override
-            public void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered, boolean isSelected) {
-                Account account = shown.get(index);
-                boolean active = SilentAuth.accounts().isActive(account);
-                String name = (active ? "\u00a7a" : "\u00a7f") + account.getUsername();
-                fontRendererObj.drawString(name, rowX, rowY, 0xFFFFFF);
-
-                String detail = "\u00a77" + account.getType().getLabel();
-                ProxyEntry proxy = LoginService.resolveProxy(account);
-                if (proxy != null) {
-                    detail += " \u00a78| \u00a77" + proxy.describe();
-                }
-                fontRendererObj.drawString(detail, rowX, rowY + 10, 0xAAAAAA);
-
-                String state = account.getStatus();
-                if (!state.isEmpty()) {
-                    String trimmed = fontRendererObj.trimStringToWidth(state, 110);
-                    int color = state.equals("ok") ? 0x55FF55 : 0xFFAA55;
-                    fontRendererObj.drawString(trimmed,
-                            rowX + rowWidth - fontRendererObj.getStringWidth(trimmed) - 6, rowY + 5, color);
-                }
-            }
-        };
-
-        int left = width / 2 - 154;
-        int rowOne = height - 86;
-        int rowTwo = height - 62;
-        int rowThree = height - 38;
-        buttonList.add(new GuiButton(1, left, rowOne, 100, 20, "Log in"));
-        buttonList.add(new GuiButton(2, left + 104, rowOne, 100, 20, "Add account"));
-        buttonList.add(new GuiButton(3, left + 208, rowOne, 100, 20, "Remove"));
-        buttonList.add(new GuiButton(4, left, rowTwo, 100, 20, "Check token"));
-        buttonList.add(new GuiButton(5, left + 104, rowTwo, 100, 20, "Set proxy"));
-        buttonList.add(new GuiButton(6, left + 208, rowTwo, 100, 20, "Proxies"));
-        buttonList.add(new GuiButton(7, left, rowThree, 308, 20, "Done"));
-
-        refreshList();
+        });
     }
 
-    private void refreshList() {
-        shown = SilentAuth.accounts().search(searchField == null ? "" : searchField.getText());
+    // ------------------------------------------------------------------ layout
+
+    private int panelLeft() {
+        return width / 2 - PANEL_WIDTH / 2;
     }
 
-    private Account selected() {
-        int index = list.getSelectedIndex();
-        if (index < 0 || index >= shown.size()) {
-            return null;
-        }
-        return shown.get(index);
+    /** How many rows fit, so the panel never runs off a short screen at a large gui scale. */
+    private int listHeight() {
+        int room = (height - 20 - CHROME_HEIGHT) / ROW_HEIGHT;
+        int rows = Math.min(Math.min(MAX_ROWS, Math.max(1, room)), Math.max(1, shown.size() + 1));
+        return rows * ROW_HEIGHT;
     }
+
+    private int panelHeight() {
+        return CHROME_HEIGHT + listHeight();
+    }
+
+    private int panelTop() {
+        return Math.max(6, (height - panelHeight()) / 2);
+    }
+
+    private static boolean isOwnRow(int index) {
+        return index == 0;
+    }
+
+    private Account accountAt(int index) {
+        int offset = index - 1;
+        return offset < 0 || offset >= shown.size() ? null : shown.get(offset);
+    }
+
+    // ------------------------------------------------------------------ actions
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         switch (button.id) {
-            case 1:
-                loginSelected();
+            case ADD:
+                addPastedToken();
                 break;
-            case 2:
-                mc.displayGuiScreen(new GuiAddAccount(this));
+            case MICROSOFT:
+                mc.displayGuiScreen(new GuiDeviceLogin(this, SilentAuth.proxies().getDefault()));
                 break;
-            case 3:
-                removeSelected();
-                break;
-            case 4:
-                checkSelected();
-                break;
-            case 5:
-                cycleProxy();
-                break;
-            case 6:
+            case PROXIES:
                 mc.displayGuiScreen(new GuiProxyManager(this));
                 break;
-            case 7:
-                mc.displayGuiScreen(parent);
+            case CLOSE:
+                back();
                 break;
             default:
                 break;
         }
     }
 
-    private void loginSelected() {
-        Account account = selected();
-        if (account == null) {
-            status = "\u00a7cPick an account first";
+    /** Stores the pasted token and switches to it in one go. */
+    private void addPastedToken() {
+        if (busy) {
             return;
         }
+        String pasted = tokenField.getText().trim();
+        if (pasted.isEmpty()) {
+            error("Paste a session token first");
+            return;
+        }
+
+        final TokenParser.Parsed parsed;
+        try {
+            parsed = TokenParser.parse(pasted);
+        } catch (IllegalArgumentException e) {
+            error(e.getMessage());
+            return;
+        }
+
         busy = true;
-        status = "\u00a77Switching to " + account.getUsername();
+        info("Checking the token");
+        Async.run(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Account account = !parsed.username.isEmpty() && !parsed.uuid.isEmpty()
+                            ? SessionTokenAuth.withoutLookup(parsed.token, parsed.username, parsed.uuid)
+                            : SessionTokenAuth.login(parsed.token, SilentAuth.proxies().getDefault());
+                    SilentAuth.accounts().add(account);
+                    clearField();
+                    playAs(account);
+                } catch (AuthException e) {
+                    busy = false;
+                    error(e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void clearField() {
+        mc.addScheduledTask(new Runnable() {
+            @Override
+            public void run() {
+                tokenField.setText("");
+                initGui();
+            }
+        });
+    }
+
+    private void playAs(Account account) {
+        busy = true;
+        info("Switching to " + account.getUsername());
         LoginService.loginAsync(account, new LoginService.Callback() {
             @Override
-            public void onResult(boolean success, String message) {
+            public void onResult(boolean success, String text) {
                 busy = false;
-                status = (success ? "\u00a7a" : "\u00a7c") + message;
+                result(success, text);
             }
         });
     }
 
-    private void checkSelected() {
-        Account account = selected();
-        if (account == null) {
-            status = "\u00a7cPick an account first";
+    /** Puts the launcher's own session back. */
+    private void playAsSelf() {
+        if (!SessionSwapper.hasOriginal()) {
+            error("The original session was not captured");
             return;
         }
-        busy = true;
-        status = "\u00a77Checking " + account.getUsername();
-        LoginService.validateAsync(account, new LoginService.Callback() {
-            @Override
-            public void onResult(boolean success, String message) {
-                busy = false;
-                status = (success ? "\u00a7a" : "\u00a7c") + message;
-            }
-        });
+        SessionSwapper.restoreOriginal();
+        SilentAuth.accounts().setActive(null);
+        ok("Playing as " + SessionSwapper.originalUsername());
     }
 
-    private void cycleProxy() {
-        Account account = selected();
-        if (account == null) {
-            status = "\u00a7cPick an account first";
-            return;
-        }
-        List<ProxyEntry> available = SilentAuth.proxies().all();
-        if (available.isEmpty()) {
-            status = "\u00a7cNo proxies stored yet";
-            return;
-        }
-
-        int index = -1;
-        for (int i = 0; i < available.size(); i++) {
-            if (available.get(i).getId().equals(account.getProxyId())) {
-                index = i;
-                break;
-            }
-        }
-        index++;
-
-        if (index >= available.size()) {
-            account.setProxyId("");
-            ProxyEntry fallback = SilentAuth.proxies().getDefault();
-            status = "\u00a77" + account.getUsername() + " follows the default ("
-                    + (fallback == null ? "none" : fallback.describe()) + ")";
-        } else {
-            ProxyEntry chosen = available.get(index);
-            account.setProxyId(chosen.getId());
-            status = "\u00a7a" + account.getUsername() + " uses " + chosen.describe();
-        }
-        SilentAuth.accounts().save();
-    }
-
-    private void removeSelected() {
-        Account account = selected();
-        if (account == null) {
-            status = "\u00a7cPick an account first";
-            return;
-        }
-        SilentAuth.accounts().remove(account);
-        list.clearSelection();
-        refreshList();
-        status = "\u00a77Removed " + account.getUsername();
-    }
+    // ------------------------------------------------------------------ input
 
     @Override
     public void updateScreen() {
-        searchField.updateCursorCounter();
-        if (!searchField.getText().equals(lastQuery)) {
-            lastQuery = searchField.getText();
-            list.clearSelection();
-            refreshList();
-        }
+        tokenField.updateCursorCounter();
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (keyCode == Keyboard.KEY_ESCAPE) {
-            mc.displayGuiScreen(parent);
+        if (handledBack(keyCode)) {
             return;
         }
-        if (keyCode == Keyboard.KEY_RETURN && searchField.isFocused()) {
+        if (keyCode == Keyboard.KEY_UP || keyCode == Keyboard.KEY_DOWN) {
+            list.moveSelection(keyCode == Keyboard.KEY_UP ? -1 : 1);
             return;
         }
-        searchField.textboxKeyTyped(typedChar, keyCode);
+        if (keyCode == Keyboard.KEY_RETURN) {
+            if (tokenField.getText().trim().isEmpty()) {
+                list.activateSelection();
+            } else {
+                addPastedToken();
+            }
+            return;
+        }
+        tokenField.textboxKeyTyped(typedChar, keyCode);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
-        searchField.mouseClicked(mouseX, mouseY, mouseButton);
+        tokenField.mouseClicked(mouseX, mouseY, mouseButton);
         list.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
@@ -241,35 +254,122 @@ public final class GuiAccountManager extends GuiScreen {
         list.handleScroll();
     }
 
+    // ------------------------------------------------------------------ drawing
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
-        drawCenteredString(fontRendererObj, "SilentAuth", width / 2, 10, 0xFFFFFF);
-        searchField.drawTextBox();
-        if (searchField.getText().isEmpty() && !searchField.isFocused()) {
-            fontRendererObj.drawString("\u00a78Search", width / 2 - 145, 28, 0x888888);
-        }
+        drawBackdrop();
+
+        int left = panelLeft();
+        int top = panelTop();
+        int listTop = top + 76;
+        int listHeight = listHeight();
+
+        drawPanel(left, top, left + PANEL_WIDTH, top + panelHeight());
+        drawTitle("SilentAuth", top + 14);
+
+        drawField(tokenField, "Paste a session token");
+        Draw.well(left + 8, listTop, left + PANEL_WIDTH - 8, listTop + listHeight,
+                FIELD_RADIUS, Theme.FIELD, Theme.FIELD_BORDER);
         list.draw(mouseX, mouseY);
 
-        String footer = "\u00a77Session: \u00a7f" + SessionSwapper.currentUsername();
-        ProxyEntry activeProxy = LoginService.resolveProxy(SilentAuth.accounts().getActive());
-        if (activeProxy != null) {
-            footer += " \u00a78| \u00a77" + activeProxy.describe();
-        }
-        drawCenteredString(fontRendererObj, footer, width / 2, height - 106, 0xFFFFFF);
-        if (!status.isEmpty()) {
-            drawCenteredString(fontRendererObj, busy ? status + " ..." : status, width / 2, height - 96, 0xFFFFFF);
-        }
+        drawStatus(listTop + listHeight + 4);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
-    @Override
-    public void onGuiClosed() {
-        Keyboard.enableRepeatEvents(false);
-    }
+    /** The account rows, with the launcher's own session pinned at the top. */
+    private final class AccountList extends ListWidget {
 
-    @Override
-    public boolean doesGuiPauseGame() {
-        return false;
+        AccountList(int x, int y, int width, int height, int rowHeight) {
+            super(x, y, width, height, rowHeight);
+        }
+
+        @Override
+        int getSize() {
+            return shown.size() + 1;
+        }
+
+        @Override
+        boolean isRemovable(int index) {
+            return !isOwnRow(index);
+        }
+
+        @Override
+        void onActivated(int index) {
+            if (busy) {
+                return;
+            }
+            if (isOwnRow(index)) {
+                playAsSelf();
+                return;
+            }
+            Account account = accountAt(index);
+            if (account != null) {
+                playAs(account);
+            }
+        }
+
+        @Override
+        boolean onRemove(int index) {
+            Account account = accountAt(index);
+            if (account == null) {
+                return false;
+            }
+            SilentAuth.accounts().remove(account);
+            clearSelection();
+            info("Removed " + account.getUsername());
+            relayout();
+            return true;
+        }
+
+        @Override
+        void drawRow(int index, int rowX, int rowY, int rowWidth, boolean hovered) {
+            if (isOwnRow(index)) {
+                drawOwnRow(rowX, rowY, rowWidth);
+                return;
+            }
+            Account account = accountAt(index);
+            if (account == null) {
+                return;
+            }
+
+            boolean inUse = SilentAuth.accounts().isActive(account);
+            boolean invalid = account.getValidity() == Validity.INVALID;
+            fontRendererObj.drawString(account.getUsername(), rowX, rowY,
+                    inUse ? Theme.OK : invalid ? Theme.DANGER : Theme.TEXT_DIM);
+
+            String state = inUse ? "in use" : invalid ? "invalid" : account.getValidity().getLabel();
+            if (!state.isEmpty()) {
+                fontRendererObj.drawString(state, rowX + rowWidth - fontRendererObj.getStringWidth(state), rowY,
+                        inUse ? Theme.OK : invalid ? Theme.DANGER : Theme.TEXT_FAINT);
+            }
+
+            String detail;
+            if (invalid && !account.getDetail().isEmpty()) {
+                detail = account.getDetail();
+            } else {
+                ProxyEntry proxy = LoginService.resolveProxy(account);
+                detail = account.getType().getLabel() + (proxy == null ? "" : "  " + proxy.describe());
+            }
+            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(detail, rowWidth - 8),
+                    rowX, rowY + 10, Theme.TEXT_FAINT);
+        }
+
+        private void drawOwnRow(int rowX, int rowY, int rowWidth) {
+            boolean inUse = SilentAuth.accounts().getActive() == null;
+            fontRendererObj.drawString("Your account", rowX, rowY, inUse ? Theme.OK : Theme.TEXT_DIM);
+            if (inUse) {
+                fontRendererObj.drawString("in use",
+                        rowX + rowWidth - fontRendererObj.getStringWidth("in use"), rowY, Theme.OK);
+            }
+            fontRendererObj.drawString(
+                    fontRendererObj.trimStringToWidth(SessionSwapper.originalUsername(), rowWidth - 8),
+                    rowX, rowY + 10, Theme.TEXT_FAINT);
+        }
+
+        @Override
+        String emptyText() {
+            return "Paste a token above to add an account";
+        }
     }
 }

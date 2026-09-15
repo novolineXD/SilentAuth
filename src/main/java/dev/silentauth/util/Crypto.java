@@ -118,9 +118,6 @@ public final class Crypto {
         } finally {
             out.close();
         }
-        file.setReadable(false, false);
-        file.setReadable(true, true);
-        file.setWritable(false, false);
-        file.setWritable(true, true);
+        JsonStore.ownerOnly(file);
     }
 }

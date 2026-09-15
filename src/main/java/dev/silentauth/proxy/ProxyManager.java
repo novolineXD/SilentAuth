@@ -1,37 +1,27 @@
 package dev.silentauth.proxy;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.silentauth.util.Crypto;
 import dev.silentauth.util.Json;
+import dev.silentauth.util.JsonStore;
 import dev.silentauth.util.Log;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class ProxyManager {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private final File file;
+    private final JsonStore store;
     private final Crypto crypto;
     private final List<ProxyEntry> proxies = new CopyOnWriteArrayList<ProxyEntry>();
-    private String defaultProxyId = "";
+    private volatile String defaultProxyId = "";
 
     public ProxyManager(File directory, Crypto crypto) {
-        this.file = new File(directory, "proxies.json");
+        this.store = new JsonStore(new File(directory, "proxies.json"), "proxies.json");
         this.crypto = crypto;
     }
 
@@ -55,12 +45,43 @@ public final class ProxyManager {
         return null;
     }
 
-    public void add(ProxyEntry entry) {
-        if (entry == null) {
-            return;
+    public ProxyEntry byEndpoint(String host, int port) {
+        if (host == null) {
+            return null;
         }
-        proxies.add(entry);
+        String wanted = host.trim();
+        for (ProxyEntry entry : proxies) {
+            if (entry.getPort() == port && entry.getHost().equalsIgnoreCase(wanted)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Stores the proxy, or updates the stored one that already has the same host and port so
+     * the same endpoint is never listed twice.
+     *
+     * @return the entry that is now stored, which may be the pre-existing one
+     */
+    public ProxyEntry add(ProxyEntry entry) {
+        if (entry == null) {
+            return null;
+        }
+        ProxyEntry existing = byEndpoint(entry.getHost(), entry.getPort());
+        if (existing == null) {
+            proxies.add(entry);
+            save();
+            return entry;
+        }
+        existing.setType(entry.getType());
+        existing.setUsername(entry.getUsername());
+        existing.setPassword(entry.getPassword());
+        if (!entry.getLabel().isEmpty()) {
+            existing.setLabel(entry.getLabel());
+        }
         save();
+        return existing;
     }
 
     public void remove(ProxyEntry entry) {
@@ -89,54 +110,33 @@ public final class ProxyManager {
 
     public void load() {
         proxies.clear();
-        if (!file.isFile()) {
+        JsonObject root = store.read();
+        defaultProxyId = Json.string(root, "default", "");
+        JsonArray array = Json.array(root, "proxies");
+        if (array == null) {
             return;
         }
-        try {
-            Reader reader = new InputStreamReader(new FileInputStream(file), "UTF-8");
-            StringBuilder sb = new StringBuilder();
-            char[] buffer = new char[4096];
-            int read;
-            try {
-                while ((read = reader.read(buffer)) > 0) {
-                    sb.append(buffer, 0, read);
-                }
-            } finally {
-                reader.close();
+        for (JsonElement element : array) {
+            if (!element.isJsonObject()) {
+                continue;
             }
-            JsonObject root = Json.parseObject(sb.toString());
-            defaultProxyId = Json.string(root, "default", "");
-            JsonArray array = Json.array(root, "proxies");
-            if (array == null) {
-                return;
+            JsonObject object = element.getAsJsonObject();
+            ProxyEntry entry = new ProxyEntry(
+                    Json.string(object, "id", ""),
+                    ProxyType.byName(Json.string(object, "type", "SOCKS5"), ProxyType.SOCKS5),
+                    Json.string(object, "host", ""),
+                    (int) Json.number(object, "port", 0),
+                    Json.string(object, "username", ""),
+                    crypto.decrypt(Json.string(object, "password", "")),
+                    Json.string(object, "label", ""));
+            if (!entry.getHost().isEmpty() && entry.getPort() > 0) {
+                proxies.add(entry);
             }
-            for (JsonElement element : array) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject object = element.getAsJsonObject();
-                ProxyEntry entry = new ProxyEntry(
-                        Json.string(object, "id", ""),
-                        ProxyType.byName(Json.string(object, "type", "socks5"), ProxyType.SOCKS5),
-                        Json.string(object, "host", ""),
-                        (int) Json.number(object, "port", 0),
-                        Json.string(object, "username", ""),
-                        crypto.decrypt(Json.string(object, "password", "")),
-                        Json.string(object, "label", ""));
-                if (!entry.getHost().isEmpty() && entry.getPort() > 0) {
-                    proxies.add(entry);
-                }
-            }
-            Log.info("Loaded " + proxies.size() + " proxies");
-        } catch (IOException e) {
-            Log.error("Could not read proxies.json", e);
         }
+        Log.info("Loaded " + proxies.size() + " proxies");
     }
 
     public void save() {
-        JsonObject root = new JsonObject();
-        root.addProperty("version", 1);
-        root.addProperty("default", defaultProxyId);
         JsonArray array = new JsonArray();
         for (ProxyEntry entry : proxies) {
             JsonObject object = new JsonObject();
@@ -149,21 +149,11 @@ public final class ProxyManager {
             object.addProperty("label", entry.getLabel());
             array.add(object);
         }
-        root.add("proxies", array);
 
-        try {
-            File parent = file.getParentFile();
-            if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
-                throw new IOException("Could not create " + parent);
-            }
-            Writer writer = new OutputStreamWriter(new FileOutputStream(file), "UTF-8");
-            try {
-                GSON.toJson(root, writer);
-            } finally {
-                writer.close();
-            }
-        } catch (IOException e) {
-            Log.error("Could not write proxies.json", e);
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("version", 1);
+        root.addProperty("default", defaultProxyId);
+        root.add("proxies", array);
+        store.write(root);
     }
 }

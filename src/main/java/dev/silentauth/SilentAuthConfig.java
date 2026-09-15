@@ -16,7 +16,7 @@ public final class SilentAuthConfig {
     private boolean proxyAuthRequests = true;
     private boolean refreshOnLogin = true;
     private boolean showMainMenuButton = true;
-    private String microsoftClientId = MicrosoftAuth.DEFAULT_CLIENT_ID;
+    private boolean restoreLastAccount;
     private ProxyType defaultProxyType = ProxyType.SOCKS5;
 
     public SilentAuthConfig(File file) {
@@ -33,10 +33,11 @@ public final class SilentAuthConfig {
         refreshOnLogin = configuration.getBoolean("refreshOnLogin", GENERAL, true,
                 "Refresh expired Microsoft tokens automatically when switching to that account");
         showMainMenuButton = configuration.getBoolean("showMainMenuButton", GENERAL, true,
-                "Add the SilentAuth button to the main menu");
-        microsoftClientId = configuration.getString("microsoftClientId", GENERAL, MicrosoftAuth.DEFAULT_CLIENT_ID,
-                "Azure application id used for the device code sign in");
-        MicrosoftAuth.setClientId(microsoftClientId);
+                "Add the SilentAuth button to the main menu and the multiplayer screen");
+        restoreLastAccount = configuration.getBoolean("restoreLastAccount", GENERAL, false,
+                "Switch back to the last used account when the game starts");
+        MicrosoftAuth.setClientId(configuration.getString("microsoftClientId", GENERAL,
+                MicrosoftAuth.DEFAULT_CLIENT_ID, "Azure application id used for the device code sign in"));
         save();
     }
 
@@ -58,11 +59,11 @@ public final class SilentAuthConfig {
         return showMainMenuButton;
     }
 
-    public ProxyType getDefaultProxyType() {
-        return defaultProxyType;
+    public boolean isRestoreLastAccount() {
+        return restoreLastAccount;
     }
 
-    public String getMicrosoftClientId() {
-        return microsoftClientId;
+    public ProxyType getDefaultProxyType() {
+        return defaultProxyType;
     }
 }

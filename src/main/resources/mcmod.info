@@ -2,14 +2,16 @@
   {
     "modid": "silentauth",
     "name": "SilentAuth",
-    "description": "Account switcher for 1.8.9 with session token login, Microsoft device code sign in and per account proxies.",
+    "description": "Account switcher for 1.8.9. Paste a session token and play. Microsoft device code sign in, HTTP and SOCKS proxies, and tokens stored encrypted.",
     "version": "${version}",
     "mcversion": "${mcversion}",
     "url": "https://github.com/novolineXD/SilentAuth",
+    "updateUrl": "",
     "authorList": [],
     "credits": "",
     "logoFile": "",
     "screenshots": [],
+    "parent": "",
     "dependencies": []
   }
 ]

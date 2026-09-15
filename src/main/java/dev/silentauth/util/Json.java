@@ -22,18 +22,6 @@ public final class Json {
         }
     }
 
-    public static JsonArray parseArray(String raw) {
-        if (raw == null || raw.trim().isEmpty()) {
-            return new JsonArray();
-        }
-        try {
-            JsonElement element = new JsonParser().parse(raw);
-            return element.isJsonArray() ? element.getAsJsonArray() : new JsonArray();
-        } catch (Exception e) {
-            return new JsonArray();
-        }
-    }
-
     public static String string(JsonObject object, String key, String fallback) {
         if (object == null || !object.has(key) || object.get(key).isJsonNull()) {
             return fallback;

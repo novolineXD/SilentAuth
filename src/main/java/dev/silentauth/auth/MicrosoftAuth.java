@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.silentauth.account.Account;
 import dev.silentauth.account.AccountType;
+import dev.silentauth.account.Validity;
 import dev.silentauth.net.Http;
 import dev.silentauth.net.HttpResponse;
 import dev.silentauth.proxy.ProxyEntry;
@@ -32,10 +33,6 @@ public final class MicrosoftAuth {
 
     public static void setClientId(String id) {
         clientId = id == null || id.trim().isEmpty() ? DEFAULT_CLIENT_ID : id.trim();
-    }
-
-    public static String getClientId() {
-        return clientId;
     }
 
     public interface StatusListener {
@@ -98,7 +95,7 @@ public final class MicrosoftAuth {
             account.setAccessToken(refreshed.getAccessToken());
             account.setRefreshToken(refreshed.getRefreshToken());
             account.setTokenExpiresAt(refreshed.getTokenExpiresAt());
-            account.setStatus("ok");
+            account.setValidity(Validity.VALID, "");
             return true;
         } catch (IOException e) {
             throw new AuthException("Could not reach Microsoft: " + e.getMessage(), e);
@@ -225,8 +222,7 @@ public final class MicrosoftAuth {
             Account account = new Account(AccountType.MICROSOFT, profile.getName(), profile.getUuid(), accessToken);
             account.setRefreshToken(refreshToken);
             account.setTokenExpiresAt(System.currentTimeMillis() + (expiresIn * 1000L));
-            account.setProxyId(proxy == null ? "" : proxy.getId());
-            account.setStatus("ok");
+            account.setValidity(Validity.VALID, "");
             return account;
         } catch (IOException e) {
             throw new AuthException("Network error during sign in: " + e.getMessage(), e);

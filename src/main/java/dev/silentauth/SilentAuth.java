@@ -1,8 +1,13 @@
 package dev.silentauth;
 
+import dev.silentauth.account.Account;
+import dev.silentauth.account.AccountChecker;
 import dev.silentauth.account.AccountManager;
+import dev.silentauth.account.LoginService;
+import dev.silentauth.account.SessionSwapper;
 import dev.silentauth.command.CommandSilentAuth;
 import dev.silentauth.event.MainMenuHandler;
+import dev.silentauth.net.ProxyAuthenticator;
 import dev.silentauth.proxy.ProxyManager;
 import dev.silentauth.proxy.ProxyTester;
 import dev.silentauth.util.Crypto;
@@ -30,15 +35,11 @@ public final class SilentAuth {
     @Mod.Instance(MOD_ID)
     private static SilentAuth instance;
 
-    private File directory;
     private SilentAuthConfig config;
     private AccountManager accounts;
     private ProxyManager proxies;
     private ProxyTester tester;
-
-    public static SilentAuth get() {
-        return instance;
-    }
+    private AccountChecker checker;
 
     public static AccountManager accounts() {
         return instance.accounts;
@@ -52,21 +53,24 @@ public final class SilentAuth {
         return instance.tester;
     }
 
+    public static AccountChecker checker() {
+        return instance.checker;
+    }
+
     public static SilentAuthConfig config() {
         return instance.config;
     }
 
-    public File getDirectory() {
-        return directory;
-    }
-
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        directory = new File(event.getModConfigurationDirectory(), MOD_ID);
+        File directory = new File(event.getModConfigurationDirectory(), MOD_ID);
         if (!directory.isDirectory() && !directory.mkdirs()) {
-            Log.warn("Could not create " + directory);
+            Log.warn("Could not create " + directory + ", nothing will be saved");
         }
         config = new SilentAuthConfig(new File(directory, "silentauth.cfg"));
+
+        // Before anything makes a request, so proxies that need credentials work from the start.
+        ProxyAuthenticator.install();
 
         Crypto crypto = Crypto.forDirectory(directory);
         proxies = new ProxyManager(directory, crypto);
@@ -74,14 +78,32 @@ public final class SilentAuth {
         proxies.load();
         accounts.load();
         tester = new ProxyTester();
+        checker = new AccountChecker();
     }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
+        SessionSwapper.captureOriginal();
         MainMenuHandler handler = new MainMenuHandler();
         MinecraftForge.EVENT_BUS.register(handler);
         FMLCommonHandler.instance().bus().register(handler);
         ClientCommandHandler.instance.registerCommand(new CommandSilentAuth());
         Log.info(MOD_NAME + " ready with " + accounts.size() + " accounts and " + proxies.size() + " proxies");
+    }
+
+    /**
+     * Puts the last used account back after a restart, if that is turned on. Called once the
+     * title screen is up rather than during startup, so the game is fully built first.
+     */
+    public static void restoreLastAccount() {
+        if (!config().isRestoreLastAccount()) {
+            return;
+        }
+        Account active = accounts().getActive();
+        if (active == null) {
+            return;
+        }
+        Log.info("Restoring the last used account: " + active.getUsername());
+        LoginService.loginAsync(active, null);
     }
 }

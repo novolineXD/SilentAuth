@@ -1,37 +1,27 @@
 package dev.silentauth.account;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.silentauth.util.Crypto;
 import dev.silentauth.util.Json;
+import dev.silentauth.util.JsonStore;
 import dev.silentauth.util.Log;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class AccountManager {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private final File file;
+    private final JsonStore store;
     private final Crypto crypto;
     private final List<Account> accounts = new CopyOnWriteArrayList<Account>();
-    private String activeId = "";
+    private volatile String activeId = "";
 
     public AccountManager(File directory, Crypto crypto) {
-        this.file = new File(directory, "accounts.json");
+        this.store = new JsonStore(new File(directory, "accounts.json"), "accounts.json");
         this.crypto = crypto;
     }
 
@@ -40,14 +30,15 @@ public final class AccountManager {
     }
 
     public List<Account> search(String query) {
-        if (query == null || query.trim().isEmpty()) {
+        String needle = query == null ? "" : query.trim().toLowerCase();
+        if (needle.isEmpty()) {
             return all();
         }
-        String needle = query.trim().toLowerCase();
         List<Account> matches = new ArrayList<Account>();
         for (Account account : accounts) {
             if (account.getUsername().toLowerCase().contains(needle)
-                    || account.getType().getLabel().toLowerCase().contains(needle)) {
+                    || account.getType().getLabel().toLowerCase().contains(needle)
+                    || account.getStrippedUuid().toLowerCase().contains(needle)) {
                 matches.add(account);
             }
         }
@@ -74,38 +65,47 @@ public final class AccountManager {
         if (username == null) {
             return null;
         }
+        String wanted = username.trim();
         for (Account account : accounts) {
-            if (account.getUsername().equalsIgnoreCase(username.trim())) {
+            if (account.getUsername().equalsIgnoreCase(wanted)) {
                 return account;
             }
         }
         return null;
     }
 
+    /** Adds the account, or folds it into the stored one that has the same uuid. */
     public void add(Account account) {
         if (account == null) {
             return;
         }
-        Account existing = null;
-        if (!account.getUuid().isEmpty()) {
-            for (Account candidate : accounts) {
-                if (!candidate.getUuid().isEmpty()
-                        && candidate.getStrippedUuid().equalsIgnoreCase(account.getStrippedUuid())) {
-                    existing = candidate;
-                    break;
-                }
-            }
-        }
-        if (existing != null) {
+        Account existing = byUuid(account.getStrippedUuid());
+        if (existing == null) {
+            accounts.add(account);
+        } else {
             existing.setUsername(account.getUsername());
             existing.setAccessToken(account.getAccessToken());
             existing.setRefreshToken(account.getRefreshToken());
             existing.setTokenExpiresAt(account.getTokenExpiresAt());
             existing.setType(account.getType());
-        } else {
-            accounts.add(account);
+            existing.setValidity(account.getValidity(), account.getDetail());
+            if (!account.getProxyId().isEmpty()) {
+                existing.setProxyId(account.getProxyId());
+            }
         }
         save();
+    }
+
+    private Account byUuid(String strippedUuid) {
+        if (strippedUuid.isEmpty()) {
+            return null;
+        }
+        for (Account candidate : accounts) {
+            if (candidate.getStrippedUuid().equalsIgnoreCase(strippedUuid)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     public void remove(Account account) {
@@ -137,57 +137,36 @@ public final class AccountManager {
 
     public void load() {
         accounts.clear();
-        if (!file.isFile()) {
+        JsonObject root = store.read();
+        activeId = Json.string(root, "active", "");
+        JsonArray array = Json.array(root, "accounts");
+        if (array == null) {
             return;
         }
-        try {
-            Reader reader = new InputStreamReader(new FileInputStream(file), "UTF-8");
-            StringBuilder sb = new StringBuilder();
-            char[] buffer = new char[4096];
-            int read;
-            try {
-                while ((read = reader.read(buffer)) > 0) {
-                    sb.append(buffer, 0, read);
-                }
-            } finally {
-                reader.close();
+        for (JsonElement element : array) {
+            if (!element.isJsonObject()) {
+                continue;
             }
-            JsonObject root = Json.parseObject(sb.toString());
-            activeId = Json.string(root, "active", "");
-            JsonArray array = Json.array(root, "accounts");
-            if (array == null) {
-                return;
+            JsonObject object = element.getAsJsonObject();
+            Account account = new Account(
+                    Json.string(object, "id", ""),
+                    AccountType.byName(Json.string(object, "type", "SESSION"), AccountType.SESSION),
+                    Json.string(object, "username", ""),
+                    Json.string(object, "uuid", ""),
+                    crypto.decrypt(Json.string(object, "accessToken", "")),
+                    crypto.decrypt(Json.string(object, "refreshToken", "")),
+                    Json.number(object, "tokenExpiresAt", 0L),
+                    Json.string(object, "proxyId", ""),
+                    Json.number(object, "addedAt", 0L),
+                    Json.number(object, "lastUsedAt", 0L));
+            if (!account.getUsername().isEmpty()) {
+                accounts.add(account);
             }
-            for (JsonElement element : array) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                JsonObject object = element.getAsJsonObject();
-                Account account = new Account(
-                        Json.string(object, "id", ""),
-                        AccountType.byName(Json.string(object, "type", "SESSION"), AccountType.SESSION),
-                        Json.string(object, "username", ""),
-                        Json.string(object, "uuid", ""),
-                        crypto.decrypt(Json.string(object, "accessToken", "")),
-                        crypto.decrypt(Json.string(object, "refreshToken", "")),
-                        Json.number(object, "tokenExpiresAt", 0L),
-                        Json.string(object, "proxyId", ""),
-                        Json.number(object, "addedAt", 0L),
-                        Json.number(object, "lastUsedAt", 0L));
-                if (!account.getUsername().isEmpty()) {
-                    accounts.add(account);
-                }
-            }
-            Log.info("Loaded " + accounts.size() + " accounts");
-        } catch (IOException e) {
-            Log.error("Could not read accounts.json", e);
         }
+        Log.info("Loaded " + accounts.size() + " accounts");
     }
 
     public void save() {
-        JsonObject root = new JsonObject();
-        root.addProperty("version", 1);
-        root.addProperty("active", activeId);
         JsonArray array = new JsonArray();
         for (Account account : accounts) {
             JsonObject object = new JsonObject();
@@ -203,23 +182,11 @@ public final class AccountManager {
             object.addProperty("lastUsedAt", account.getLastUsedAt());
             array.add(object);
         }
-        root.add("accounts", array);
 
-        try {
-            File parent = file.getParentFile();
-            if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
-                throw new IOException("Could not create " + parent);
-            }
-            Writer writer = new OutputStreamWriter(new FileOutputStream(file), "UTF-8");
-            try {
-                GSON.toJson(root, writer);
-            } finally {
-                writer.close();
-            }
-            file.setReadable(false, false);
-            file.setReadable(true, true);
-        } catch (IOException e) {
-            Log.error("Could not write accounts.json", e);
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("version", 1);
+        root.addProperty("active", activeId);
+        root.add("accounts", array);
+        store.write(root);
     }
 }

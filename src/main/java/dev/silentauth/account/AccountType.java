@@ -3,8 +3,7 @@ package dev.silentauth.account;
 public enum AccountType {
 
     SESSION("Session"),
-    MICROSOFT("Microsoft"),
-    OFFLINE("Offline");
+    MICROSOFT("Microsoft");
 
     private final String label;
 
@@ -14,10 +13,6 @@ public enum AccountType {
 
     public String getLabel() {
         return label;
-    }
-
-    public boolean isOnline() {
-        return this != OFFLINE;
     }
 
     public static AccountType byName(String name, AccountType fallback) {

@@ -14,7 +14,9 @@ public final class Account {
     private String proxyId;
     private long addedAt;
     private long lastUsedAt;
-    private volatile String status = "";
+    private volatile Validity validity = Validity.UNKNOWN;
+    private volatile String detail = "";
+    private volatile long checkedAt;
 
     public Account(AccountType type, String username, String uuid, String accessToken) {
         this(UUID.randomUUID().toString(), type, username, uuid, accessToken, "", 0L, "", System.currentTimeMillis(), 0L);
@@ -32,15 +34,6 @@ public final class Account {
         this.proxyId = proxyId == null ? "" : proxyId;
         this.addedAt = addedAt == 0L ? System.currentTimeMillis() : addedAt;
         this.lastUsedAt = lastUsedAt;
-    }
-
-    public static Account offline(String username) {
-        Account account = new Account(AccountType.OFFLINE, username, offlineUuid(username), "");
-        return account;
-    }
-
-    public static String offlineUuid(String username) {
-        return UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes()).toString().replace("-", "");
     }
 
     public String getId() {
@@ -115,12 +108,26 @@ public final class Account {
         this.lastUsedAt = System.currentTimeMillis();
     }
 
-    public String getStatus() {
-        return status;
+    public Validity getValidity() {
+        return validity;
     }
 
-    public void setStatus(String status) {
-        this.status = status == null ? "" : status;
+    /** The reason a check failed, shown next to the account. Empty when there is nothing to say. */
+    public String getDetail() {
+        return detail;
+    }
+
+    public void setValidity(Validity validity, String detail) {
+        this.validity = validity == null ? Validity.UNKNOWN : validity;
+        this.detail = detail == null ? "" : detail;
+        if (validity == Validity.VALID || validity == Validity.INVALID) {
+            this.checkedAt = System.currentTimeMillis();
+        }
+    }
+
+    /** True when the token was checked recently enough not to be worth checking again. */
+    public boolean wasCheckedWithin(long millis) {
+        return checkedAt > 0L && System.currentTimeMillis() - checkedAt < millis;
     }
 
     public boolean hasToken() {
@@ -133,14 +140,6 @@ public final class Account {
 
     public boolean canRefresh() {
         return type == AccountType.MICROSOFT && !refreshToken.isEmpty();
-    }
-
-    public String getDashedUuid() {
-        if (uuid.length() != 32) {
-            return uuid;
-        }
-        return uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-"
-                + uuid.substring(16, 20) + "-" + uuid.substring(20);
     }
 
     public String getStrippedUuid() {

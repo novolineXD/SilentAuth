@@ -2,6 +2,7 @@ package dev.silentauth.auth;
 
 import dev.silentauth.account.Account;
 import dev.silentauth.account.AccountType;
+import dev.silentauth.account.Validity;
 import dev.silentauth.proxy.ProxyEntry;
 
 public final class SessionTokenAuth {
@@ -13,8 +14,7 @@ public final class SessionTokenAuth {
         String token = normalise(raw);
         MinecraftServices.Profile profile = MinecraftServices.fetchProfile(token, proxy);
         Account account = new Account(AccountType.SESSION, profile.getName(), profile.getUuid(), token);
-        account.setProxyId(proxy == null ? "" : proxy.getId());
-        account.setStatus("ok");
+        account.setValidity(Validity.VALID, "");
         return account;
     }
 
@@ -28,7 +28,7 @@ public final class SessionTokenAuth {
             throw new AuthException("A uuid is required when the profile lookup is skipped");
         }
         Account account = new Account(AccountType.SESSION, username.trim(), cleanedUuid, token);
-        account.setStatus("unverified");
+        account.setValidity(Validity.UNKNOWN, "");
         return account;
     }
 
@@ -37,10 +37,10 @@ public final class SessionTokenAuth {
             MinecraftServices.Profile profile = MinecraftServices.fetchProfile(account.getAccessToken(), proxy);
             account.setUsername(profile.getName());
             account.setUuid(profile.getUuid());
-            account.setStatus("ok");
+            account.setValidity(Validity.VALID, "");
             return true;
         } catch (AuthException e) {
-            account.setStatus(e.getMessage());
+            account.setValidity(Validity.INVALID, e.getMessage());
             return false;
         }
     }

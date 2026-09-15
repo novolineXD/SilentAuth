@@ -17,10 +17,6 @@ public final class HttpResponse {
         return status;
     }
 
-    public String getBody() {
-        return body;
-    }
-
     public boolean isOk() {
         return status >= 200 && status < 300;
     }

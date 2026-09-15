@@ -15,6 +15,7 @@ public final class ProxyTester {
     private static final String PROBE_HOST = "sessionserver.mojang.com";
     private static final int PROBE_PORT = 443;
     private static final int TIMEOUT_MS = 8000;
+    private static final long FRESH_FOR_MS = 5L * 60L * 1000L;
 
     private final ExecutorService pool;
 
@@ -31,28 +32,30 @@ public final class ProxyTester {
         });
     }
 
-    public void testAsync(final ProxyEntry entry, final Runnable onFinished) {
-        if (entry == null) {
+    /** Tests one proxy. Returns at once. */
+    public void testAsync(final ProxyEntry entry) {
+        if (entry == null || entry.isBeingTested()) {
             return;
         }
+        entry.setLatencyMs(ProxyEntry.TESTING);
         pool.submit(new Runnable() {
             @Override
             public void run() {
                 test(entry);
-                if (onFinished != null) {
-                    onFinished.run();
-                }
             }
         });
     }
 
-    public void testAll(List<ProxyEntry> entries, Runnable onFinished) {
+    /** Tests everything that has not been tested recently, so nothing needs a manual check. */
+    public void testStale(List<ProxyEntry> entries) {
         for (ProxyEntry entry : entries) {
-            testAsync(entry, onFinished);
+            if (!entry.isBeingTested() && !entry.wasTestedWithin(FRESH_FOR_MS)) {
+                testAsync(entry);
+            }
         }
     }
 
-    public void test(ProxyEntry entry) {
+    private void test(ProxyEntry entry) {
         long start = System.currentTimeMillis();
         Socket socket = null;
         try {
@@ -66,10 +69,6 @@ public final class ProxyTester {
         } finally {
             ProxySockets.closeQuietly(socket);
         }
-    }
-
-    public void shutdown() {
-        pool.shutdownNow();
     }
 
     private static String shorten(String message) {
