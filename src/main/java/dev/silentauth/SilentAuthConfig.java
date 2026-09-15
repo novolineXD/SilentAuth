@@ -14,6 +14,7 @@ public final class SilentAuthConfig {
     private final Configuration configuration;
 
     private boolean proxyAuthRequests = true;
+    private boolean routeGameThroughProxy = true;
     private boolean refreshOnLogin = true;
     private boolean showMainMenuButton = true;
     private boolean restoreLastAccount;
@@ -28,6 +29,8 @@ public final class SilentAuthConfig {
         configuration.load();
         proxyAuthRequests = configuration.getBoolean("proxyAuthRequests", PROXY, true,
                 "Send login and session requests through the proxy bound to the account");
+        routeGameThroughProxy = configuration.getBoolean("routeGameThroughProxy", PROXY, true,
+                "Carry the actual server connection through the proxy too, so the server sees the proxy IP");
         defaultProxyType = ProxyType.byName(configuration.getString("defaultType", PROXY, "SOCKS5",
                 "Type assumed for proxies pasted without a scheme"), ProxyType.SOCKS5);
         refreshOnLogin = configuration.getBoolean("refreshOnLogin", GENERAL, true,
@@ -49,6 +52,10 @@ public final class SilentAuthConfig {
 
     public boolean isProxyAuthRequests() {
         return proxyAuthRequests;
+    }
+
+    public boolean isRouteGameThroughProxy() {
+        return routeGameThroughProxy;
     }
 
     public boolean isRefreshOnLogin() {

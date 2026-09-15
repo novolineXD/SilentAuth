@@ -11,10 +11,11 @@ joined by the mod itself.
 - **Microsoft device code sign in** - no password is ever typed into the game. A code is
   shown, you enter it at `microsoft.com/link`, and the refresh token is stored so the
   account can be reused later. Expired tokens refresh themselves on the next login.
-- **Proxies** - HTTP, SOCKS4a and SOCKS5, with or without credentials. Each account can be
-  bound to its own proxy, or a default can be set for everything. Every token check, sign in
-  and session server call then goes out through it, including the ones the game makes for
-  itself while joining a server.
+- **Proxies** - HTTP, SOCKS4a and SOCKS5, with or without credentials. When a proxy is in use
+  the whole connection travels through it: the token check and sign in, the session server
+  calls, and - crucially - the connection to the game server itself, so the server sees the
+  proxy's IP and not yours. The proxy resolves the server's address, so that lookup does not
+  leak either.
 - **Encrypted storage** - tokens are stored AES-GCM encrypted under a key file next to them,
   never in plain text, and never written to the log. Saves are atomic, so a crash halfway
   through a write cannot lose the accounts file.
@@ -141,6 +142,7 @@ and every colour is paired with a word, so it still reads without colour.
 | `general.showMainMenuButton` | `true` | Add the button to the title and multiplayer screens |
 | `general.restoreLastAccount` | `false` | Switch back to the last used account when the game starts |
 | `general.microsoftClientId` | Minecraft's | Azure application id used for the device code sign in |
+| `proxy.routeGameThroughProxy` | `true` | Carry the actual server connection through the proxy, so the server sees the proxy IP |
 | `proxy.proxyAuthRequests` | `true` | Send login and token checks through the account's proxy |
 | `proxy.defaultType` | `SOCKS5` | Type assumed for proxies pasted without a scheme |
 
@@ -168,6 +170,13 @@ normal install even if a name moves.
 
 Everything that touches the network runs off the render thread; only the swap itself is
 scheduled back onto the client thread.
+
+The game's own connection to a server does not use that proxy field - Minecraft opens a
+direct socket. So when a proxy is in use the mod starts a small relay on `127.0.0.1`, points
+the game at it, and the relay tunnels the connection through the proxy, rewriting the first
+handshake packet so the server still receives its own hostname (the Forge `FML` marker is
+kept). This covers joining from the server list, a double click, Direct Connect and LAN. Turn
+it off with `proxy.routeGameThroughProxy` if you only want the auth traffic proxied.
 
 Proxy credentials are handed to the JDK through a `java.net.Authenticator` rather than a
 `Proxy-Authorization` header, because on an HTTPS request that header would travel inside the

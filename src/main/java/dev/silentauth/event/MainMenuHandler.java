@@ -2,12 +2,15 @@ package dev.silentauth.event;
 
 import dev.silentauth.SilentAuth;
 import dev.silentauth.gui.GuiAccountManager;
+import dev.silentauth.net.ProxiedConnect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.multiplayer.GuiConnecting;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -58,6 +61,22 @@ public final class MainMenuHandler {
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (openKey.isPressed()) {
             open(null);
+        }
+    }
+
+    /**
+     * Every join - server list, double click, direct connect or LAN - opens a
+     * {@link GuiConnecting}. This is the one place all of them pass through, so the game
+     * connection is rerouted through the proxy here.
+     */
+    @SubscribeEvent
+    public void onGuiOpen(GuiOpenEvent event) {
+        if (!(event.gui instanceof GuiConnecting)) {
+            return;
+        }
+        GuiScreen replacement = ProxiedConnect.maybeReroute((GuiConnecting) event.gui);
+        if (replacement != null) {
+            event.gui = replacement;
         }
     }
 

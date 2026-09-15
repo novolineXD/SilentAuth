@@ -49,6 +49,15 @@ public final class Reflect {
         return match;
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> T get(Object instance, Class<?> owner, Class<?> type, String... names) {
+        try {
+            return (T) find(owner, type, names).get(instance);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Could not read " + owner.getName(), e);
+        }
+    }
+
     public static void set(Object instance, Class<?> owner, Class<?> type, Object value, String... names) {
         Field field = find(owner, type, names);
         try {
