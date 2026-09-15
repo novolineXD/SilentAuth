@@ -70,6 +70,7 @@ abstract class SilentAuthScreen extends GuiScreen {
 
     protected final void drawBackdrop() {
         Draw.setScale(new ScaledResolution(mc).getScaleFactor());
+        GlassFont.get().preload();
         drawRect(0, 0, width, height, Theme.BACKDROP);
     }
 

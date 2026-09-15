@@ -60,7 +60,7 @@ public final class GuiAccountManager extends SilentAuthScreen {
         int listHeight = listHeight();
 
         String carried = tokenField == null ? "" : tokenField.getText();
-        tokenField = new GuiTextField(0, fontRendererObj, left + 20, fieldTop, PANEL_WIDTH - 110, 12);
+        tokenField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 12);
         tokenField.setMaxStringLength(4096);
         tokenField.setEnableBackgroundDrawing(false);
         tokenField.setTextColor(Theme.TEXT);

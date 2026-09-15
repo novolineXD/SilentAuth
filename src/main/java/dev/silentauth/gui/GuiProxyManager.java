@@ -49,7 +49,7 @@ public final class GuiProxyManager extends SilentAuthScreen {
         int fieldTop = top + 40;
         int listTop = top + 76;
 
-        addressField = new GuiTextField(0, fontRendererObj, left + 20, fieldTop, PANEL_WIDTH - 110, 12);
+        addressField = new GuiTextField(0, GlassFontRenderer.get(), left + 20, fieldTop, PANEL_WIDTH - 110, 12);
         addressField.setMaxStringLength(4096);
         addressField.setEnableBackgroundDrawing(false);
         addressField.setTextColor(Theme.TEXT);

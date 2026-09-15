@@ -90,6 +90,17 @@ final class GlassFont {
         return ready;
     }
 
+    /**
+     * Binds the atlas once so Minecraft loads it before the first glyph is drawn. Without this
+     * the very first frame samples the magenta "missing texture" for an instant. Must run on
+     * the client thread.
+     */
+    void preload() {
+        if (ready) {
+            Minecraft.getMinecraft().getTextureManager().bindTexture(ATLAS);
+        }
+    }
+
     private int advancePx(char c) {
         if (c < FIRST || c > LAST) {
             c = ' ';
@@ -103,6 +114,39 @@ final class GlassFont {
             w += advancePx(text.charAt(i)) * scale;
         }
         return w;
+    }
+
+    float charWidth(char c) {
+        return advancePx(c) * scale;
+    }
+
+    /** The longest prefix (or suffix, if reverse) of the text that fits within maxWidth. No ellipsis. */
+    String fit(String text, float maxWidth, boolean reverse) {
+        if (text == null || text.isEmpty() || width(text) <= maxWidth) {
+            return text == null ? "" : text;
+        }
+        StringBuilder sb = new StringBuilder();
+        float w = 0.0F;
+        if (reverse) {
+            for (int i = text.length() - 1; i >= 0; i--) {
+                float cw = charWidth(text.charAt(i));
+                if (w + cw > maxWidth) {
+                    break;
+                }
+                sb.insert(0, text.charAt(i));
+                w += cw;
+            }
+        } else {
+            for (int i = 0; i < text.length(); i++) {
+                float cw = charWidth(text.charAt(i));
+                if (w + cw > maxWidth) {
+                    break;
+                }
+                sb.append(text.charAt(i));
+                w += cw;
+            }
+        }
+        return sb.toString();
     }
 
     /** Draws the string with its top-left at (x, y) in the wanted ARGB colour. Returns the end x. */
