@@ -8,7 +8,7 @@ import org.lwjgl.input.Keyboard;
 import java.io.IOException;
 
 /** Shared chrome for the mod's screens: a tinted backdrop, one glass panel, one status line. */
-abstract class SilentAuthScreen extends GuiScreen {
+public abstract class SilentAuthScreen extends GuiScreen {
 
     static final float PANEL_RADIUS = 12.0F;
     static final float FIELD_RADIUS = 7.0F;
