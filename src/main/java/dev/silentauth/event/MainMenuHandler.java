@@ -36,7 +36,7 @@ public final class MainMenuHandler {
     /** Well outside the id range any vanilla screen uses. */
     private static final int BUTTON_ID = 0x5A17;
 
-    private final KeyBinding openKey = new KeyBinding("Open SilentAuth", Keyboard.KEY_RSHIFT, "SilentAuth");
+    private final KeyBinding openKey = new KeyBinding("Open SilentAuth", Keyboard.KEY_RCONTROL, "SilentAuth");
     private boolean keyWasDown;
     private boolean restored;
 

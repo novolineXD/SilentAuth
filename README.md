@@ -43,8 +43,9 @@ For IDEA: run `./gradlew setupDecompWorkspace idea` first, then import the proje
 ## Using it
 
 Open **Multiplayer** (or stay on the title screen). The **SilentAuth** button sits in the top
-left of both. In game, **right shift** opens the same screen; the key can be rebound under
-Options, Controls, SilentAuth.
+left of both. **Right Ctrl** opens the screen from anywhere - the main menu, the server list or in game -
+so it works even on clients like Lunar that replace the vanilla menus. The key can be rebound
+under Options, Controls, SilentAuth.
 
 Everything happens from there. `/sa` does the same things from chat, with tab completion.
 
