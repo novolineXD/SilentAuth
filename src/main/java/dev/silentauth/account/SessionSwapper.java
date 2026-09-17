@@ -26,6 +26,9 @@ public final class SessionSwapper {
     private static final String[] SESSION_SERVICE_FIELD = { "sessionService", "field_152355_az" };
     private static final String[] PROXY_FIELD = { "proxy", "field_110453_aa" };
 
+    /** Offline servers ignore the token, but an empty one produces a malformed session id. */
+    private static final String OFFLINE_TOKEN = "0";
+
     /** The session the launcher started the game with, so it can always be put back. */
     private static Session original;
 
@@ -47,6 +50,18 @@ public final class SessionSwapper {
         return original == null ? "unknown" : original.getUsername();
     }
 
+    /**
+     * Spoofs just the name the client and offline servers see, leaving the proxy and session
+     * service alone. Only works on cracked/offline-mode servers - a premium server checks the
+     * name against Mojang and will reject a spoofed one.
+     */
+    public static void spoof(String username) {
+        String name = username.trim();
+        Session session = new Session(name, Account.offlineUuid(name), OFFLINE_TOKEN, "legacy");
+        Reflect.set(Minecraft.getMinecraft(), Minecraft.class, Session.class, session, SESSION_FIELD);
+        Log.info("Spoofed the session name to " + name);
+    }
+
     /** Puts the launcher's session back and stops using any proxy. */
     public static void restoreOriginal() {
         if (original == null) {
@@ -58,8 +73,9 @@ public final class SessionSwapper {
     }
 
     public static void apply(Account account, ProxyEntry proxy) {
+        boolean offline = account.getType() == AccountType.OFFLINE;
         Session session = new Session(account.getUsername(), account.getStrippedUuid(),
-                account.getAccessToken(), "mojang");
+                offline ? OFFLINE_TOKEN : account.getAccessToken(), offline ? "legacy" : "mojang");
 
         Reflect.set(Minecraft.getMinecraft(), Minecraft.class, Session.class, session, SESSION_FIELD);
         applyProxy(proxy);

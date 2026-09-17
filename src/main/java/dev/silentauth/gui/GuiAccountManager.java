@@ -30,14 +30,16 @@ public final class GuiAccountManager extends SilentAuthScreen {
 
     private static final int ADD = 1;
     private static final int MICROSOFT = 2;
-    private static final int PROXIES = 3;
-    private static final int CLOSE = 4;
+    private static final int OFFLINE = 3;
+    private static final int SPOOFER = 4;
+    private static final int PROXIES = 5;
+    private static final int CLOSE = 6;
 
     private static final int PANEL_WIDTH = 330;
     private static final int ROW_HEIGHT = 32;
     private static final int MAX_ROWS = 6;
-    /** Title, field, status band, two button rows and the bottom padding. */
-    private static final int CHROME_HEIGHT = 76 + 16 + 50 + 14;
+    /** Title, field, status band, three button rows and the bottom padding. */
+    private static final int CHROME_HEIGHT = 76 + 16 + 78 + 12;
 
     private GuiTextField tokenField;
     private ListWidget list;
@@ -73,9 +75,11 @@ public final class GuiAccountManager extends SilentAuthScreen {
 
         int buttonsTop = listTop + listHeight + 16;
         int half = (PANEL_WIDTH - 40 - 10) / 2;
-        buttonList.add(new GlassButton(MICROSOFT, left + 20, buttonsTop, half, 22, "Microsoft"));
-        buttonList.add(new GlassButton(PROXIES, left + 30 + half, buttonsTop, half, 22, "Proxies"));
-        buttonList.add(new GlassButton(CLOSE, left + 20, buttonsTop + 28, PANEL_WIDTH - 40, 22, "Close"));
+        buttonList.add(new GlassButton(OFFLINE, left + 20, buttonsTop, half, 22, "Offline"));
+        buttonList.add(new GlassButton(MICROSOFT, left + 30 + half, buttonsTop, half, 22, "Microsoft"));
+        buttonList.add(new GlassButton(SPOOFER, left + 20, buttonsTop + 28, half, 22, "Spoofer"));
+        buttonList.add(new GlassButton(PROXIES, left + 30 + half, buttonsTop + 28, half, 22, "Proxies"));
+        buttonList.add(new GlassButton(CLOSE, left + 20, buttonsTop + 56, PANEL_WIDTH - 40, 22, "Close"));
 
         SilentAuth.checker().checkAll(shown);
     }
@@ -130,6 +134,12 @@ public final class GuiAccountManager extends SilentAuthScreen {
                 break;
             case MICROSOFT:
                 mc.displayGuiScreen(new GuiDeviceLogin(this, SilentAuth.proxies().getDefault()));
+                break;
+            case OFFLINE:
+                mc.displayGuiScreen(new GuiAddOffline(this));
+                break;
+            case SPOOFER:
+                mc.displayGuiScreen(new GuiSpoofer(this));
                 break;
             case PROXIES:
                 mc.displayGuiScreen(new GuiProxyManager(this));

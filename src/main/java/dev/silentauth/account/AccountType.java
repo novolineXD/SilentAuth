@@ -3,7 +3,8 @@ package dev.silentauth.account;
 public enum AccountType {
 
     SESSION("Session"),
-    MICROSOFT("Microsoft");
+    MICROSOFT("Microsoft"),
+    OFFLINE("Offline");
 
     private final String label;
 
@@ -13,6 +14,11 @@ public enum AccountType {
 
     public String getLabel() {
         return label;
+    }
+
+    /** Offline accounts carry no token and only work on cracked servers. */
+    public boolean isOnline() {
+        return this != OFFLINE;
     }
 
     public static AccountType byName(String name, AccountType fallback) {

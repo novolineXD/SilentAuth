@@ -44,6 +44,10 @@ public final class AccountChecker {
         if (account == null) {
             return;
         }
+        if (account.getType() == AccountType.OFFLINE) {
+            account.setValidity(Validity.VALID, "");
+            return;
+        }
         if (account.getValidity() == Validity.CHECKING) {
             return;
         }

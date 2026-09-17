@@ -70,8 +70,15 @@ If the paste already contains a name and a uuid they are used as they are and no
 looked up. Otherwise the token goes to the profile endpoint once, which fills in the name and
 uuid and proves the token still works.
 
-**Microsoft sign in** is a button on the same screen, so there is no account type to pick
-first.
+**Microsoft sign in** and **Offline** are buttons on the same screen. Offline makes an
+account with any username and no token, for cracked / offline-mode servers.
+
+### Spoofing your username
+
+**Spoofer** changes just the name the client and offline servers see, without touching the
+account you are logged in with. Type a name, press **Spoof name**, and **Reset** puts your
+real name back. It only works on cracked / offline-mode servers - a premium server checks the
+name against Mojang and rejects a spoofed one.
 
 ### Getting your own account back
 
@@ -107,7 +114,7 @@ way out at the bottom.
 
 | Screen | What a row does | Buttons |
 | --- | --- | --- |
-| Accounts | Click to play as it, x to forget it | Add, Microsoft sign in, Proxies, Close |
+| Accounts | Click to play as it, x to forget it | Add, Offline, Microsoft, Spoofer, Proxies, Close |
 | Proxies | Click to use it for everything, x to drop it | Add, Back |
 
 Clicking the account already in use does nothing; clicking the proxy already in use turns it

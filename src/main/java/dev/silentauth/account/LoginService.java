@@ -65,7 +65,7 @@ public final class LoginService {
                 return "Token refresh failed: " + e.getMessage();
             }
         }
-        if (!account.hasToken()) {
+        if (account.getType().isOnline() && !account.hasToken()) {
             return "That account has no token stored";
         }
         return null;
@@ -97,6 +97,10 @@ public final class LoginService {
      * thread, so callers that are on the client thread should hand this to {@link AccountChecker}.
      */
     static void check(Account account) {
+        if (account.getType() == AccountType.OFFLINE) {
+            account.setValidity(Validity.VALID, "");
+            return;
+        }
         if (!account.hasToken()) {
             account.setValidity(Validity.INVALID, "no token stored");
             return;

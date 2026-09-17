@@ -36,6 +36,21 @@ public final class Account {
         this.lastUsedAt = lastUsedAt;
     }
 
+    public static Account offline(String username) {
+        return new Account(AccountType.OFFLINE, username, offlineUuid(username), "");
+    }
+
+    /** The same uuid an offline mode server derives for the name, so skins and stats line up. */
+    public static String offlineUuid(String username) {
+        byte[] seed;
+        try {
+            seed = ("OfflinePlayer:" + username).getBytes("UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new IllegalStateException("UTF-8 is always present", e);
+        }
+        return UUID.nameUUIDFromBytes(seed).toString().replace("-", "");
+    }
+
     public String getId() {
         return id;
     }
