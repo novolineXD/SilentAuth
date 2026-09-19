@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "silentauth",
+  "version": "${version}",
+  "name": "SilentAuth",
+  "description": "Account switcher: session tokens, Microsoft sign in, offline accounts, a username spoofer and proxies.",
+  "authors": ["novolineXD"],
+  "contact": { "homepage": "https://github.com/novolineXD/SilentAuth" },
+  "license": "All rights reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.silentauth.fabric.SilentAuthClient"]
+  },
+  "mixins": ["silentauth.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.silentauth.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["MinecraftClientAccessor", "ConnectScreenMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

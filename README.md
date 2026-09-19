@@ -4,6 +4,9 @@ Account manager for Minecraft 1.8.9 (Forge). Session tokens and proxies are type
 into the game: there are no config files to edit, no lists to prepare, and no server is ever
 joined by the mod itself.
 
+> **Modern Minecraft?** A Fabric port for **1.21.11** lives in [`fabric/`](fabric/) - the same
+> mod, same features, rebuilt on the modern client. See [fabric/README.md](fabric/README.md).
+
 ## Features
 
 - **Session token login** - paste a token, the profile endpoint fills in the name and uuid,
